@@ -3,3 +3,5 @@
 venv/
 .tox
 test-*.xml
+.coverage
+htmlcov

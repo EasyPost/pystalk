@@ -9,8 +9,8 @@ with open('requirements.txt', 'r') as f:
 
 setup(
     name="pystalk",
-    version="0.1",
-    author="James Brown",
+    version="0.2",
+    author="EasyPost",
     author_email="oss@easypost.com",
     url="https://github.com/easypost/pystalk",
     description="Very simple beanstalkd client",

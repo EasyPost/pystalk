@@ -50,9 +50,7 @@ for job in client.reserve_iter():
     client.delete_job(job.job_id)
 ```
 
-Note that, even though we require that job data be UTF-8 encodeable in the `put_job` method, we do not decode for you --
-the job data that comes out is a byte-string in Python 3.5. You should call `.decode("utf-8")` on it if you want to get
-the input data back out.
+Note that, even though we require that job data be UTF-8 encodeable in the `put_job` method, we do not decode for you -- the job data that comes out is a byte-string in Python 3.5. You should call `.decode("utf-8")` on it if you want to get the input data back out. If you would like that behavior, pass `auto_decode=True` to the `BeanstalkClient` constructor; note that this might make it difficult for you to consume data injected by other systems which don't assume UTF-8.
 
 ### Multiple Job Servers
 
@@ -81,3 +79,17 @@ while True:
     execute_job(job)
     client.delete_job(job.job_id)
 ```
+
+## Development
+
+Pretty straightforward. Develop in branches, send PRs, land on master. All tests must pass before landing.
+
+### Releasing a new version
+
+   1. Land all requisite changes
+   1. Bump the version in `setup.py` and `pystalk/__init__.py` to the stable version (e.g., `0.2`)
+   1. Update [`CHANGES.md`](CHANGES.md) with the changes and the new version number
+   1. Commit
+   1. Tag the version (e.g., `git tag -s pystalk-0.2`)
+   1. Push up to Github
+   1. Upload to PyPI with `python setup.py sdist upload`

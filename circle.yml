@@ -7,5 +7,8 @@ dependencies:
 test:
   override:
     - tox
+  post:
+    - "cp coverage.xml $CIRCLE_ARTIFACTS/"
+    - "cp -R htmlcov $CIRCLE_ARTIFACTS/"
 
 # vim: set syntax=yaml ts=2 sw=2 sts=0 expandtab:
