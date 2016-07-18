@@ -3,6 +3,8 @@ compatible with both Python 2 and Python 3.
 
 This project was initially created for [beancmd](https://github.com/EasyPost/beancmd). You may also be interested in that tool!
 
+[![CircleCI](https://circleci.com/gh/EasyPost/pystalk.svg?style=svg&circle-token=6541f20728b477392b8e30e80b5f4cc573ba8833)](https://circleci.com/gh/EasyPost/pystalk)
+
 ## Example Usage
 
 ### Creating Jobs
