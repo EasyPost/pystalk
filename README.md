@@ -5,6 +5,15 @@ This project was initially created for [beancmd](https://github.com/EasyPost/bea
 
 [![CircleCI](https://circleci.com/gh/EasyPost/pystalk.svg?style=svg&circle-token=6541f20728b477392b8e30e80b5f4cc573ba8833)](https://circleci.com/gh/EasyPost/pystalk)
 
+## Requirements / Installing
+
+This software works with Python 2.7, 3.3, 3.4, and 3.5. It'll probably work with Python 3.6 as well.
+
+It does not support any asynchronous event loops and has not been tested with gevent. It's designed for simple,
+synchronous use.
+
+You should be able to install it from [PyPI](https://pypi.python.org) with `pip install pystalk`.
+
 ## Example Usage
 
 ### Creating Jobs
