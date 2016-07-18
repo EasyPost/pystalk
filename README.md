@@ -1,4 +1,4 @@
-**`simple_beanstalk`** is an extremely simple client for [beanstalkd](http://kr.github.io/beanstalkd/). It is
+**`pystalk`** is an extremely simple client for [beanstalkd](http://kr.github.io/beanstalkd/). It is
 compatible with both Python 2 and Python 3.
 
 This project was initially created for [beancmd](https://github.com/EasyPost/beancmd). You may also be interested in that tool!
@@ -12,7 +12,7 @@ This project was initially created for [beancmd](https://github.com/EasyPost/bea
 
 import json
 
-from simple_beanstalk import BeanstalkClient
+from pystalk import BeanstalkClient
 
 client = BeanstalkClient('10.0.0.1', 11300)
 client.put_job(json.dumps({"foo": "bar"}), delay=30)
@@ -27,7 +27,7 @@ The following script will walk through all currently-READY jobs and then exit:
 ```lang=python
 #!/usr/bin/python
 
-from simple_beanstalk import BeanstalkClient
+from pystalk import BeanstalkClient
 
 client = BeanstalkClient('10.0.0.1', 11300)
 for job in client.reserve_iter():
@@ -51,7 +51,7 @@ The following will reserve jobs from a group of Beanstalk servers, fairly rotati
 #!/usr/bin/python
 
 from myapp import execute_job
-from simple_beanstalk import BeanstalkClient, BeanstalkTimedOutError
+from pystalk import BeanstalkClient, BeanstalkTimedOutError
 
 hosts = ('10.0.0.1', '10.0.0.2')
 clients = dict((h, BeanstalkClient(h, 11300)) for h in hosts)

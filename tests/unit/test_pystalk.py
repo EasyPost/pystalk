@@ -1,4 +1,4 @@
-import simple_beanstalk
+import pystalk
 
 import unittest
 
@@ -20,7 +20,7 @@ class MockBeanstalkServerSocket(object):
 
 class SimpleBeanstalkTestCase(unittest.TestCase):
     def setUp(self):
-        self.client = simple_beanstalk.BeanstalkClient('foo', 0)
+        self.client = pystalk.BeanstalkClient('foo', 0)
         self.server = MockBeanstalkServerSocket()
         self.client.socket = self.server
 
