@@ -1,0 +1,11 @@
+dependencies:
+  pre:
+    - sudo apt-get install beanstalkd
+  override:
+    - pip install tox tox-pyenv
+    - pyenv local 2.7.11 3.3.6 3.4.4 3.5.1
+test:
+  override:
+    - tox
+
+# vim: set syntax=yaml ts=2 sw=2 sts=0 expandtab:
