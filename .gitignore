@@ -1,0 +1,5 @@
+*.egg-info
+.cache/
+venv/
+.tox
+test-*.xml
