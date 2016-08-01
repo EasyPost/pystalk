@@ -33,9 +33,13 @@ class BeanstalkClient(object):
     """Simple wrapper around the Beanstalk API.
 
     :param host: Hostname or IP address to connect to
+    :type host: str
     :param port: Port to connect to
+    :type port: int
     :param socket_timeout: Timeout to set on the socket.
+    :type socket_timeout: float
     :param auto_decode: Attempt to decode job bodies as UTF-8 when reading them
+    :type auto_decode: bool
 
     Doesn't provide any fanciness for writing consumers or producers. Just lets you invoke methods to call beanstalk
     functions.
@@ -43,7 +47,7 @@ class BeanstalkClient(object):
       .. warning::
 
          Setting socket timeout to a value lower than the value you pass to blocking functions like
-         `reserve_job` will cause errors!
+         :func:`reserve_job()` will cause errors!
     """
     def __init__(self, host, port=11300, socket_timeout=None, auto_decode=False):
         """Construct a synchronous Beanstalk Client. Does not connect!"""
@@ -73,7 +77,7 @@ class BeanstalkClient(object):
     def close(self):
         """Close any open connection to the Beanstalk server.
 
-        This object is still safe to use after calling .close(); it will automatically reconnect
+        This object is still safe to use after calling :func:`close()` ; it will automatically reconnect
         """
         if self.socket is not None:
             self.socket.close()
@@ -177,7 +181,7 @@ class BeanstalkClient(object):
     def stats(self):
         """Return a dictionary with a bunch of instance-wide statistics
 
-        :rtype: dictionary
+        :rtype: dict
         """
         with self._sock_ctx() as socket:
             self._send_message('stats', socket)
