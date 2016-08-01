@@ -66,6 +66,15 @@ class BeanstalkClient(object):
             self.socket = socket.create_connection((self.host, self.port), timeout=self.socket_timeout)
         return self.socket
 
+    def close(self):
+        """Close any open connection to the Beanstalk server.
+
+        This object is still safe to use after calling .close(); it will automatically reconnect
+        """
+        if self.socket is not None:
+            self.socket.close()
+            self.socket = None
+
     @contextmanager
     def _sock_ctx(self):
         yield self._socket
@@ -302,12 +311,20 @@ class BeanstalkClient(object):
             return self._receive_id(socket)
 
     def pause_tube(self, tube, delay=3600):
+        """Pause a tube for some number of seconds, preventing it from issuing jobs.
+
+        :param delay int: Time to pause for, in whole seconds
+
+        There is no way to permanently pause a tube; passing 0 for delay actually un-pauses the tube
+        """
         with self._sock_ctx() as socket:
             delay = int(delay)
             self.send_message('pause-tube {0} {1}'.format(tube, delay), socket)
             return self._receive_word(socket, b'PAUSED')
 
     def unpause_tube(self, tube):
+        """Unpause a tube which was previously paused with @pause_tube.
+        """
         with self._sock_ctx() as socket:
             self.send_message('pause-tube {0} 0'.format(tube), socket)
             return self._receive_word(socket, b'PAUSED')
