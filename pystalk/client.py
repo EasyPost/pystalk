@@ -4,10 +4,13 @@ import socket
 import yaml
 
 
-Job = collections.namedtuple('Job', ['job_id', 'job_data'])
+class Job(collections.namedtuple('Job', ['job_id', 'job_data'])):
+    """Structure holding a job returned from Beanstalk"""
+    pass
 
 
 class BeanstalkError(Exception):
+    """Common error raised when something goes wron with beanstalk"""
     def __init__(self, message):
         self.message = message.decode('ascii')
 
@@ -29,20 +32,21 @@ def yaml_load(fo):
 class BeanstalkClient(object):
     """Simple wrapper around the Beanstalk API.
 
+    :param host: Hostname or IP address to connect to
+    :param port: Port to connect to
+    :param socket_timeout: Timeout to set on the socket.
+    :param auto_decode: Attempt to decode job bodies as UTF-8 when reading them
+
     Doesn't provide any fanciness for writing consumers or producers. Just lets you invoke methods to call beanstalk
     functions.
+
+      .. warning::
+
+         Setting socket timeout to a value lower than the value you pass to blocking functions like
+         `reserve_job` will cause errors!
     """
     def __init__(self, host, port=11300, socket_timeout=None, auto_decode=False):
-        """Construct a synchronous Beanstalk Client. Does not connect!
-
-        :param host: Hostname or IP address to connect to
-        :param port: Port to connect to
-        :param socket_timeout: Timeout to set on the socket.
-        :param auto_decode: Attempt to decode job bodies as UTF-8 when reading them
-
-        NOTE: Setting the socket timeout to a value lower than the value you pass to blocking functions like
-        `reserve_job` will cause errors!
-        """
+        """Construct a synchronous Beanstalk Client. Does not connect!"""
         self.host = host
         self.port = port
         self.socket_timeout = socket_timeout
@@ -149,7 +153,7 @@ class BeanstalkClient(object):
             raise BeanstalkError(message)
         return message
 
-    def send_message(self, message, sock):
+    def _send_message(self, message, sock):
         if isinstance(message, bytes):
             if not message.endswith(b'\r\n'):
                 message += b'\r\n'
@@ -160,20 +164,40 @@ class BeanstalkClient(object):
             return sock.sendall(message.encode('utf-8'))
 
     def list_tubes(self):
+        """Return a list of tubes that this beanstalk instance knows about
+
+        :rtype: list of tubes
+        """
         with self._sock_ctx() as sock:
-            self.send_message('list-tubes', sock)
+            self._send_message('list-tubes', sock)
             body = self._receive_data_with_prefix(b'OK', sock)
             tubes = yaml_load(body)
             return tubes
 
     def stats(self):
+        """Return a dictionary with a bunch of instance-wide statistics
+
+        :rtype: dictionary
+        """
         with self._sock_ctx() as socket:
-            self.send_message('stats', socket)
+            self._send_message('stats', socket)
             body = self._receive_data_with_prefix(b'OK', socket)
             stats = yaml_load(body)
             return stats
 
     def put_job(self, data, pri=65536, delay=0, ttr=120):
+        """Insert a new job into the queue.
+
+        :param data: Job body
+        :type data: Text (either str which will be encoded as utf-8, or bytes which are already utf-8
+        :param pri: Priority for the job
+        :type pri: int
+        :param delay: Delay in seconds before the job should be placed on the ready queue
+        :type delay: int
+        :param ttr: Time to reserve (how long a worker may work on this job before we assume the worker is blocked
+            and give the job to another worker
+        :type ttr: int
+        """
         with self._sock_ctx() as socket:
             message = 'put {pri} {delay} {ttr} {datalen}\r\n'.format(
                 pri=pri, delay=delay, ttr=ttr, datalen=len(data), data=data
@@ -182,12 +206,21 @@ class BeanstalkClient(object):
                 data = data.encode('utf-8')
             message += data
             message += b'\r\n'
-            self.send_message(message, socket)
+            self._send_message(message, socket)
             return self._receive_id(socket)
 
     def watch(self, tube):
+        """Add the given tube to the watchlist.
+
+        :param tube: Name of the tube to add to the watchlist
+
+        Note: Initially, all connections are watching a tube named "default". If
+        you manually call :func:`watch()`, we will un-watch the "default" tube.
+        To keep it in your list, first call :func:`watch()` with the other tubes, then
+        call `:func:`watch()` with "default".
+        """
         with self._sock_ctx() as socket:
-            self.send_message('watch {0}'.format(tube), socket)
+            self._send_message('watch {0}'.format(tube), socket)
             self._receive_id(socket)
             if self.initial_watch:
                 if tube != 'default':
@@ -196,59 +229,79 @@ class BeanstalkClient(object):
             self.watchlist.append(tube)
 
     def ignore(self, tube):
+        """Remove the given tube from the watchlist.
+
+        :param tube: Name of tube to remove from the watchlist
+
+        If all tubes are :func:`ignore()` d, beanstalk will auto-add "default" to the watchlist
+        to prevent the list from being empty. See :func:`watch()` for more unformation.
+        """
         with self._sock_ctx() as socket:
             if tube not in self.watchlist:
                 raise KeyError(tube)
-            self.send_message('ignore {0}'.format(tube), socket)
+            self._send_message('ignore {0}'.format(tube), socket)
             self._receive_id(socket)
             self.watchlist.remove(tube)
 
     def stats_job(self, job_id):
+        """Fetch statistics about a single job
+
+        :rtype: dict
+        """
         with self._sock_ctx() as socket:
             if hasattr(job_id, 'job_id'):
                 job_id = job_id.job_id
-            self.send_message('stats-job {0}'.format(job_id), socket)
+            self._send_message('stats-job {0}'.format(job_id), socket)
             body = self._receive_data_with_prefix(b'OK', socket)
             job_status = yaml_load(body)
             return job_status
 
     def stats_tube(self, tube_name):
+        """Fetch statistics about a single tube
+
+        :param tube_name: Tube to fetch stats about
+        :rtype: dict
+        """
         with self._sock_ctx() as socket:
-            self.send_message('stats-tube {0}'.format(tube_name), socket)
+            self._send_message('stats-tube {0}'.format(tube_name), socket)
             body = self._receive_data_with_prefix(b'OK', socket)
             return yaml_load(body)
 
     def reserve_job(self, timeout=5):
         """Reserve a job for this connection. Blocks for TIMEOUT secionds and raises TIMED_OUT if no job was available
 
-        :param timeout: Time to wait for a job, in seconds. Must be an integer.
+        :param timeout: Time to wait for a job, in seconds.
+        :type timeout: int
         """
         timeout = int(timeout)
         if not self.watchlist:
             raise ValueError('Select a tube or two before reserving a job')
         with self._sock_ctx() as socket:
-            self.send_message('reserve-with-timeout {0}'.format(timeout), socket)
+            self._send_message('reserve-with-timeout {0}'.format(timeout), socket)
             job_id, job_data = self._receive_id_and_data_with_prefix(b'RESERVED', socket)
             return Job(job_id, job_data)
 
     def peek_ready(self):
-        """Peek at the job job on the ready queue"""
+        """Peek at the job job on the ready queue.
+
+        :rtype: :class:`Job`
+        """
         with self._sock_ctx() as socket:
-            self.send_message('peek-ready', socket)
+            self._send_message('peek-ready', socket)
             job_id, job_data = self._receive_id_and_data_with_prefix(b'FOUND', socket)
             return Job(job_id, job_data)
 
     def peek_delayed(self):
         """Peek at the job job on the delayed queue"""
         with self._sock_ctx() as socket:
-            self.send_message('peek-delayed', socket)
+            self._send_message('peek-delayed', socket)
             job_id, job_data = self._receive_id_and_data_with_prefix(b'FOUND', socket)
             return Job(job_id, job_data)
 
     def peek_buried(self):
         """Peek at the top job on the buried queue"""
         with self._sock_ctx() as socket:
-            self.send_message('peek-buried', socket)
+            self._send_message('peek-buried', socket)
             job_id, job_data = self._receive_id_and_data_with_prefix(b'FOUND', socket)
             return Job(job_id, job_data)
 
@@ -279,52 +332,84 @@ class BeanstalkClient(object):
         if hasattr(job_id, 'job_id'):
             job_id = job_id.job_id
         with self._sock_ctx() as socket:
-            self.send_message('delete {0}'.format(job_id), socket)
+            self._send_message('delete {0}'.format(job_id), socket)
             self._receive_word(socket, b'DELETED')
 
     def bury_job(self, job_id, pri=65536):
-        """Mark the given job_id as buried. The job must have been previously reserved by this connection"""
+        """Mark the given job_id as buried. The job must have been previously reserved by this connection
+
+        :param job_id: Job to bury
+        :param pri: Priority for the newly-buried job. If not passed, will keep its current priority
+        :type pri: int
+        """
         if hasattr(job_id, 'job_id'):
             job_id = job_id.job_id
         with self._sock_ctx() as socket:
-            self.send_message('bury {0} {1}'.format(job_id, pri), socket)
+            self._send_message('bury {0} {1}'.format(job_id, pri), socket)
             return self._receive_word(socket, b'BURIED')
 
     def release_job(self, job_id, pri=65536, delay=0):
+        """Put a job back on the queue to be processed (indicating that you've aborted it)
+
+        :param job_id: Job ID to return
+        :param pri: New priority (if not passed, will use old priority)
+        :type pri: int
+        :param delay: New delay for job (if not passed, will use 0)
+        :type delay: int
+        """
         if hasattr(job_id, 'job_id'):
             job_id = job_id.job_id
         with self._sock_ctx() as socket:
-            self.send_message('release {0} {1} {2}\r\n'.format(job_id, pri, delay), socket)
+            self._send_message('release {0} {1} {2}\r\n'.format(job_id, pri, delay), socket)
             return self._receive_word(socket, b'RELEASED', b'BURIED')
 
-    def use(self, tube_name):
-        """Start producing jobs into the given tube. Subsequent calls to .put_job will go here!"""
+    def use(self, tube):
+        """Start producing jobs into the given tube.
+
+        :param tube: Name of the tube to USE
+
+        Subsequent calls to :func:put_job()` insert jobs into this tube.
+        """
         with self._sock_ctx() as socket:
-            self.send_message('use {0}'.format(tube_name), socket)
+            self._send_message('use {0}'.format(tube), socket)
             self._receive_name(socket)
-            self.current_tube = tube_name
+            self.current_tube = tube
 
     def kick_jobs(self, num_jobs):
-        """Kick some number of jobs from the buried queue onto the ready queue"""
+        """Kick some number of jobs from the buried queue onto the ready queue.
+
+        :param num_jobs: Number of jobs to kick
+        :type num_jobs: int
+
+        If not that many jobs are in the buried queue, it will kick as many as it can."""
         with self._sock_ctx() as socket:
-            self.send_message('kick {0}'.format(num_jobs), socket)
+            self._send_message('kick {0}'.format(num_jobs), socket)
             return self._receive_id(socket)
 
     def pause_tube(self, tube, delay=3600):
         """Pause a tube for some number of seconds, preventing it from issuing jobs.
 
-        :param delay int: Time to pause for, in whole seconds
+        :param delay: Time to pause for, in seconds
+        :type delay: int
 
-        There is no way to permanently pause a tube; passing 0 for delay actually un-pauses the tube
+        There is no way to permanently pause a tube; passing 0 for delay actually un-pauses the tube.
+
+        .. seealso::
+
+           :func:`unpause_tube()`
         """
         with self._sock_ctx() as socket:
             delay = int(delay)
-            self.send_message('pause-tube {0} {1}'.format(tube, delay), socket)
+            self._send_message('pause-tube {0} {1}'.format(tube, delay), socket)
             return self._receive_word(socket, b'PAUSED')
 
     def unpause_tube(self, tube):
-        """Unpause a tube which was previously paused with @pause_tube.
+        """Unpause a tube which was previously paused with :func:`pause_tube()`.
+
+        .. seealso::
+
+           :func:`pause_tube()`
         """
         with self._sock_ctx() as socket:
-            self.send_message('pause-tube {0} 0'.format(tube), socket)
+            self._send_message('pause-tube {0} 0'.format(tube), socket)
             return self._receive_word(socket, b'PAUSED')

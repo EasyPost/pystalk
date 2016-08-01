@@ -5,3 +5,4 @@ venv/
 test-*.xml
 .coverage
 htmlcov
+__pycache__
