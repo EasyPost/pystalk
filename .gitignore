@@ -6,3 +6,5 @@ test-*.xml
 .coverage
 htmlcov
 __pycache__
+
+.DS_Store

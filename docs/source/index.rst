@@ -1,15 +1,26 @@
-.. pystalk documentation master file, created by
-   sphinx-quickstart on Mon Aug  1 10:19:04 2016.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-Welcome to pystalk's documentation!
+pystalk documentation
 ===================================
 
-Contents:
+**pystalk** is a simple Python module for interacting with the
+`beanstalk <https://kr.github.io/beanstalkd/>`_ task queueing daemon.
+It doesn't provide much magic, but is suitable for building all sorts of
+functionality on top of.
+
+This work is available under the terms of the ISC License.
+
+.. seealso::
+    https://github.com/easypost/beancmd
+
+Contents
+--------
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
+
+   CHANGES
+
+Members
+-------
 
 .. automodule:: pystalk
    :members:

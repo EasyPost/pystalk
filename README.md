@@ -89,7 +89,8 @@ Pretty straightforward. Develop in branches, send PRs, land on master. All tests
 
    1. Land all requisite changes
    1. Bump the version in `setup.py` and `pystalk/__init__.py` to the stable version (e.g., `0.2`)
-   1. Update [`CHANGES.md`](CHANGES.md) with the changes and the new version number
+   1. Update [`CHANGES.rst`](docs/source/CHANGES.rst) with the changes and the new version number
+   1. Update [`conf.py`](docs/source/conf.py) with the new version number
    1. Commit
    1. Tag the version (e.g., `git tag -s pystalk-0.2`)
    1. Push up to Github
