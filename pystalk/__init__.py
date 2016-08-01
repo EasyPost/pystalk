@@ -1,6 +1,6 @@
 from .client import BeanstalkClient, BeanstalkError
 
-version_info = (0, 2)
+version_info = (0, 2, 1)
 __version__ = '.'.join(str(s) for s in version_info)
 __author__ = 'EasyPost <oss@easypost.com>'
 
