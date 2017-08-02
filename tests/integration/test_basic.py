@@ -20,9 +20,9 @@ def test_consume_jobs(beanstalk_client, tube_name):
         beanstalk_client.put_job(str(i))
     assert beanstalk_client.stats_tube(tube_name)['current-jobs-ready'] == 100
     i_s = []
-    assert beanstalk_client.watchlist == ['default']
+    assert beanstalk_client.watchlist == set(['default'])
     beanstalk_client.watch(tube_name)
-    assert beanstalk_client.watchlist == [tube_name]
+    assert beanstalk_client.watchlist == set([tube_name])
     for job in beanstalk_client.reserve_iter():
         i_s.append(int(job.job_data))
         beanstalk_client.delete_job(job)
@@ -57,13 +57,13 @@ def test_list_tubes(beanstalk_client, tube_name):
 
 
 def test_watch_ignore(beanstalk_client, tube_name):
-    assert beanstalk_client.watchlist == ['default']
+    assert beanstalk_client.watchlist == set(['default'])
     beanstalk_client.watch(tube_name)
-    assert beanstalk_client.watchlist == [tube_name]
+    assert beanstalk_client.watchlist == set([tube_name])
     beanstalk_client.watch('default')
-    assert beanstalk_client.watchlist == [tube_name, 'default']
+    assert beanstalk_client.watchlist == set([tube_name, 'default'])
     beanstalk_client.ignore(tube_name)
-    assert beanstalk_client.watchlist == ['default']
+    assert beanstalk_client.watchlist == set(['default'])
     with pytest.raises(KeyError):
         beanstalk_client.ignore('0')
 
@@ -146,3 +146,15 @@ def test_auto_decode(beanstalk_client, tube_name):
     beanstalk_client.use(tube_name)
     beanstalk_client.put_job('test_auto_decode')
     assert beanstalk_client.peek_ready().job_data == 'test_auto_decode'
+
+
+def test_restore_after_disconnect(beanstalk_client, tube_name):
+    beanstalk_client.watch(tube_name)
+    beanstalk_client.use(tube_name)
+    assert beanstalk_client.stats_tube(tube_name)['current-jobs-ready'] == 0
+    beanstalk_client.close()
+    # make sure the job still gets put into the right tube
+    beanstalk_client.put_job('test_job')
+    assert beanstalk_client.stats_tube(tube_name)['current-jobs-ready'] == 1
+    j = beanstalk_client.reserve_job(0)
+    assert j.job_data == b'test_job'
