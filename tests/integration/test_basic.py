@@ -158,3 +158,15 @@ def test_restore_after_disconnect(beanstalk_client, tube_name):
     assert beanstalk_client.stats_tube(tube_name)['current-jobs-ready'] == 1
     j = beanstalk_client.reserve_job(0)
     assert j.job_data == b'test_job'
+
+
+def test_using(beanstalk_client, tube_name):
+    beanstalk_client.use('default')
+    with beanstalk_client.using(tube_name) as inserter:
+        inserter.put_job(b'test_job')
+    assert beanstalk_client.stats_tube(tube_name)['current-jobs-ready'] == 1
+
+
+def test_put_job_into(beanstalk_client, tube_name):
+    beanstalk_client.put_job_into(tube_name, 'some_job')
+    assert beanstalk_client.stats_tube(tube_name)['current-jobs-ready'] == 1

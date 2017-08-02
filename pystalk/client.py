@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+import attr
 import collections
 import socket
 import yaml
@@ -27,6 +28,18 @@ def yaml_load(fo):
         return yaml.load(fo, Loader=yaml.CSafeLoader)
     else:
         return yaml.safe_load(fo)
+
+
+@attr.s(frozen=True)
+class BeanstalkInsertingProxy(object):
+    """Proxy object yielded by :func:`BeanstalkClient.using()`"""
+
+    beanstalk_client = attr.ib()
+    tube = attr.ib()
+
+    def put_job(self, data, pri=65536, delay=0, ttr=120):
+        self.beanstalk_client.use(self.tube)
+        return self.beanstalk_client.put_job(data=data, pri=pri, delay=delay, ttr=ttr)
 
 
 class BeanstalkClient(object):
@@ -209,7 +222,7 @@ class BeanstalkClient(object):
             return stats
 
     def put_job(self, data, pri=65536, delay=0, ttr=120):
-        """Insert a new job into the queue.
+        """Insert a new job into whatever queue is currently USEd
 
         :param data: Job body
         :type data: Text (either str which will be encoded as utf-8, or bytes which are already utf-8
@@ -231,6 +244,24 @@ class BeanstalkClient(object):
             message += b'\r\n'
             self._send_message(message, socket)
             return self._receive_id(socket)
+
+    def put_job_into(self, tube_name, data, pri=65536, delay=0, ttr=120):
+        """Insert a new job into a specific queue
+
+        :param tube_name: Tube name
+        :type tube_name: str
+        :param data: Job body
+        :type data: Text (either str which will be encoded as utf-8, or bytes which are already utf-8
+        :param pri: Priority for the job
+        :type pri: int
+        :param delay: Delay in seconds before the job should be placed on the ready queue
+        :type delay: int
+        :param ttr: Time to reserve (how long a worker may work on this job before we assume the worker is blocked
+            and give the job to another worker
+        :type ttr: int
+        """
+        with self.using(tube_name) as inserter:
+            return inserter.put_job(data=data, pri=pri, delay=delay, ttr=ttr)
 
     @property
     def watchlist(self):
@@ -424,6 +455,20 @@ class BeanstalkClient(object):
                 self._send_message('use {0}'.format(tube), socket)
                 self._receive_name(socket)
                 self.current_tube = tube
+
+    @contextmanager
+    def using(self, tube):
+        """Context-manager to insert jobs into a specific tube
+
+        :param tube: Tube to insert to
+
+        Yields out an object which can only insert stuff into that tube
+        """
+        try:
+            current_tube = self.current_tube
+            yield BeanstalkInsertingProxy(self, tube)
+        finally:
+            self.use(current_tube)
 
     def kick_jobs(self, num_jobs):
         """Kick some number of jobs from the buried queue onto the ready queue.
