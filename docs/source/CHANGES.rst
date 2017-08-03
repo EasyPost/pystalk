@@ -3,6 +3,12 @@ pystalk ChangeLog
 #################
 
 ======
+0.3.0
+======
+* Add :py:func:`pystalk.client.BeanstalkClient.using` and :py:func:`pystalk.client.BeanstalkClient.put_job_into` as clearer APIs for inserting jobs
+* Re-establish USE and WATCH on close/re-open
+
+======
 0.2.1
 ======
 
