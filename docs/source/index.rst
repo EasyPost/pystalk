@@ -22,9 +22,18 @@ Contents
 Members
 -------
 
-.. automodule:: pystalk
+.. autoclass:: pystalk.BeanstalkClient
    :members:
    :undoc-members:
+
+.. autoclass:: pystalk.BeanstalkError
+   :members:
+
+.. autoclass:: pystalk.client.Job
+   :members:
+
+.. autoclass:: pystalk.client.BeanstalkInsertingProxy
+   :members:
 
 Indices and tables
 ==================

@@ -1,25 +1,29 @@
 from contextlib import contextmanager
 import attr
-import collections
 import socket
 import yaml
 
 
-class Job(collections.namedtuple('Job', ['job_id', 'job_data'])):
-    """Structure holding a job returned from Beanstalk"""
-    pass
+@attr.s(frozen=True)
+class Job(object):
+    """Structure holding a job returned from Beanstalk
+
+    :ivar job_id: Opaque identifier for the job (to be passed to :func:`BeanstalkClient.release_job()` or
+        :func:`BeanstalkClient.stats_job()`).
+
+    :ivar job_data: Blob of the data. str if :attr:`BeanstalkClient.auto_decode` is True; otherwise bytes
+    """
+
+    job_id = attr.ib(validator=attr.validators.instance_of(int))
+
+    job_data = attr.ib()
 
 
+@attr.s(frozen=True, hash=True, cmp=True)
 class BeanstalkError(Exception):
-    """Common error raised when something goes wron with beanstalk"""
-    def __init__(self, message):
-        self.message = message.decode('ascii')
+    """Common error raised when something goes wrong with beanstalk"""
 
-    def __repr__(self):
-        return '{0}({1!r})'.format(self.__class__.__name__, self.message)  # pragma: no cover
-
-    def __str__(self):
-        return repr(self)  # pragma: no cover
+    message = attr.ib(convert=lambda m: m.decode('ascii'))
 
 
 def yaml_load(fo):
@@ -38,6 +42,19 @@ class BeanstalkInsertingProxy(object):
     tube = attr.ib()
 
     def put_job(self, data, pri=65536, delay=0, ttr=120):
+        """Method to insert a job into the tube selected with :func:`BeanstalkClient.using`.
+
+        :param data: Job body
+        :type data: Text (either str which will be encoded as utf-8, or bytes which are already utf-8
+        :param pri: Priority for the job
+        :type pri: int
+        :param delay: Delay in seconds before the job should be placed on the ready queue
+        :type delay: int
+        :param ttr: Time to reserve (how long a worker may work on this job before we assume the worker is blocked
+            and give the job to another worker
+        :type ttr: int
+        """
+
         self.beanstalk_client.use(self.tube)
         return self.beanstalk_client.put_job(data=data, pri=pri, delay=delay, ttr=ttr)
 
@@ -90,10 +107,10 @@ class BeanstalkClient(object):
     def _socket(self):
         if self.socket is None:
             self.socket = socket.create_connection((self.host, self.port), timeout=self.socket_timeout)
-            self.re_establish_use_watch()
+            self._re_establish_use_watch()
         return self.socket
 
-    def re_establish_use_watch(self):
+    def _re_establish_use_watch(self):
         """Call after a close/re-connect.
 
         Automatically re-establishes the USE and WATCH configs previously setup.
@@ -233,6 +250,14 @@ class BeanstalkClient(object):
         :param ttr: Time to reserve (how long a worker may work on this job before we assume the worker is blocked
             and give the job to another worker
         :type ttr: int
+
+        .. seealso::
+
+           :func:`put_job_into()`
+              Put a job into a specific tube
+
+           :func:`using()`
+              Insert a job using an external guard
         """
         with self._sock_ctx() as socket:
             message = 'put {pri} {delay} {ttr} {datalen}\r\n'.format(
@@ -246,7 +271,7 @@ class BeanstalkClient(object):
             return self._receive_id(socket)
 
     def put_job_into(self, tube_name, data, pri=65536, delay=0, ttr=120):
-        """Insert a new job into a specific queue
+        """Insert a new job into a specific queue. Wrapper around :func:`put_job`.
 
         :param tube_name: Tube name
         :type tube_name: str
@@ -259,6 +284,14 @@ class BeanstalkClient(object):
         :param ttr: Time to reserve (how long a worker may work on this job before we assume the worker is blocked
             and give the job to another worker
         :type ttr: int
+
+        .. seealso::
+
+           :func:`put_job()`
+              Put a job into whatever the current tube is
+
+           :func:`using()`
+              Insert a job using an external guard
         """
         with self.using(tube_name) as inserter:
             return inserter.put_job(data=data, pri=pri, delay=delay, ttr=ttr)
@@ -289,7 +322,7 @@ class BeanstalkClient(object):
         Note: Initially, all connections are watching a tube named "default". If
         you manually call :func:`watch()`, we will un-watch the "default" tube.
         To keep it in your list, first call :func:`watch()` with the other tubes, then
-        call `:func:`watch()` with "default".
+        call :func:`watch()` with "default".
         """
         with self._sock_ctx() as socket:
             self.desired_watchlist.add(tube)
@@ -353,6 +386,8 @@ class BeanstalkClient(object):
         :type timeout: int
         """
         timeout = int(timeout)
+        if timeout >= self.socket_timeout:
+            raise ValueError('reserve_job timeout must be < socket timeout')
         if not self._watchlist:
             raise ValueError('Select a tube or two before reserving a job')
         with self._sock_ctx() as socket:
@@ -430,6 +465,8 @@ class BeanstalkClient(object):
     def release_job(self, job_id, pri=65536, delay=0):
         """Put a job back on the queue to be processed (indicating that you've aborted it)
 
+        You can only release a job which you have reserved using :func:`reserve_job()` or :func:`reserve_iter()`.
+
         :param job_id: Job ID to return
         :param pri: New priority (if not passed, will use old priority)
         :type pri: int
@@ -447,7 +484,7 @@ class BeanstalkClient(object):
 
         :param tube: Name of the tube to USE
 
-        Subsequent calls to :func:put_job()` insert jobs into this tube.
+        Subsequent calls to :func:`put_job` insert jobs into this tube.
         """
         with self._sock_ctx() as socket:
             if self.current_tube != tube:
@@ -462,10 +499,22 @@ class BeanstalkClient(object):
 
         :param tube: Tube to insert to
 
-        Yields out an object which can only insert stuff into that tube
+        Yields out an instance of :class:`BeanstalkInsertingProxy` to insert items into that tube
+
+        .. seealso::
+
+           :func:`use()`
+              Change the default tube
+
+           :func:`put_job()`
+              Put a job into whatever the current tube is
+
+           :func:`put_job_into()`
+              Put a job into a specific tube
         """
         try:
             current_tube = self.current_tube
+            self.use(tube)
             yield BeanstalkInsertingProxy(self, tube)
         finally:
             self.use(current_tube)
