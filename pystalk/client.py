@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+import attr
 import collections
 import socket
 import yaml
@@ -29,6 +30,18 @@ def yaml_load(fo):
         return yaml.safe_load(fo)
 
 
+@attr.s(frozen=True)
+class BeanstalkInsertingProxy(object):
+    """Proxy object yielded by :func:`BeanstalkClient.using()`"""
+
+    beanstalk_client = attr.ib()
+    tube = attr.ib()
+
+    def put_job(self, data, pri=65536, delay=0, ttr=120):
+        self.beanstalk_client.use(self.tube)
+        return self.beanstalk_client.put_job(data=data, pri=pri, delay=delay, ttr=ttr)
+
+
 class BeanstalkClient(object):
     """Simple wrapper around the Beanstalk API.
 
@@ -54,34 +67,53 @@ class BeanstalkClient(object):
         self.host = host
         self.port = port
         self.socket_timeout = socket_timeout
-        self.socket = None
-        self.watchlist = ['default']
+        self._reset_state()
+        self.desired_tube = 'default'
+        self.desired_watchlist = set(['default'])
+        self.auto_decode = auto_decode
+
+    def _reset_state(self):
+        self._watchlist = set(['default'])
         self.current_tube = 'default'
         self.initial_watch = True
-        self.auto_decode = auto_decode
+        self.socket = None
 
     def __repr__(self):
         return '{0}({1!r}, {2!r})'.format(self.__class__.__name__, self.host, self.port)  # pragma: no cover
 
     def __str__(self):
         return '{0} - watching:{1}, current:{2}'.format(  # pragma: no cover
-            repr(self), self.watchlist, self.current_tube  # pragma: no cover
+            repr(self), self._watchlist, self.current_tube  # pragma: no cover
         )  # pragma: no cover
 
     @property
     def _socket(self):
         if self.socket is None:
             self.socket = socket.create_connection((self.host, self.port), timeout=self.socket_timeout)
+            self.re_establish_use_watch()
         return self.socket
+
+    def re_establish_use_watch(self):
+        """Call after a close/re-connect.
+
+        Automatically re-establishes the USE and WATCH configs previously setup.
+        """
+        if self.current_tube != self.desired_tube:
+            self.use(self.desired_tube)
+        if self._watchlist != self.desired_watchlist:
+            self.watchlist = self.desired_watchlist
 
     def close(self):
         """Close any open connection to the Beanstalk server.
 
         This object is still safe to use after calling :func:`close()` ; it will automatically reconnect
+        and re-establish any open watches / uses.
+
+        It is a logic error to close the connection while you have a reserved job
         """
         if self.socket is not None:
             self.socket.close()
-            self.socket = None
+            self._reset_state()
 
     @contextmanager
     def _sock_ctx(self):
@@ -190,7 +222,7 @@ class BeanstalkClient(object):
             return stats
 
     def put_job(self, data, pri=65536, delay=0, ttr=120):
-        """Insert a new job into the queue.
+        """Insert a new job into whatever queue is currently USEd
 
         :param data: Job body
         :type data: Text (either str which will be encoded as utf-8, or bytes which are already utf-8
@@ -213,6 +245,42 @@ class BeanstalkClient(object):
             self._send_message(message, socket)
             return self._receive_id(socket)
 
+    def put_job_into(self, tube_name, data, pri=65536, delay=0, ttr=120):
+        """Insert a new job into a specific queue
+
+        :param tube_name: Tube name
+        :type tube_name: str
+        :param data: Job body
+        :type data: Text (either str which will be encoded as utf-8, or bytes which are already utf-8
+        :param pri: Priority for the job
+        :type pri: int
+        :param delay: Delay in seconds before the job should be placed on the ready queue
+        :type delay: int
+        :param ttr: Time to reserve (how long a worker may work on this job before we assume the worker is blocked
+            and give the job to another worker
+        :type ttr: int
+        """
+        with self.using(tube_name) as inserter:
+            return inserter.put_job(data=data, pri=pri, delay=delay, ttr=ttr)
+
+    @property
+    def watchlist(self):
+        return self._watchlist
+
+    @watchlist.setter
+    def watchlist(self, tubes):
+        """Set the watchlist to the given tubes
+
+        :param tubes: A list of tubes to watch
+
+        Automatically un-watches any tubes that are not on the target list
+        """
+        tubes = set(tubes)
+        for tube in tubes - self._watchlist:
+            self.watch(tube)
+        for tube in self._watchlist - tubes:
+            self.ignore(tube)
+
     def watch(self, tube):
         """Add the given tube to the watchlist.
 
@@ -224,13 +292,15 @@ class BeanstalkClient(object):
         call `:func:`watch()` with "default".
         """
         with self._sock_ctx() as socket:
-            self._send_message('watch {0}'.format(tube), socket)
-            self._receive_id(socket)
-            if self.initial_watch:
-                if tube != 'default':
-                    self.ignore('default')
-                self.initial_watch = False
-            self.watchlist.append(tube)
+            self.desired_watchlist.add(tube)
+            if tube not in self._watchlist:
+                self._send_message('watch {0}'.format(tube), socket)
+                self._receive_id(socket)
+                self._watchlist.add(tube)
+                if self.initial_watch:
+                    if tube != 'default':
+                        self.ignore('default')
+                    self.initial_watch = False
 
     def ignore(self, tube):
         """Remove the given tube from the watchlist.
@@ -241,11 +311,16 @@ class BeanstalkClient(object):
         to prevent the list from being empty. See :func:`watch()` for more unformation.
         """
         with self._sock_ctx() as socket:
-            if tube not in self.watchlist:
+            if tube not in self._watchlist:
                 raise KeyError(tube)
-            self._send_message('ignore {0}'.format(tube), socket)
-            self._receive_id(socket)
-            self.watchlist.remove(tube)
+            if tube != 'default':
+                self.desired_watchlist.remove(tube)
+            if tube in self._watchlist:
+                self._send_message('ignore {0}'.format(tube), socket)
+                self._receive_id(socket)
+                self._watchlist.remove(tube)
+            if not self._watchlist:
+                self._watchlist.add('default')
 
     def stats_job(self, job_id):
         """Fetch statistics about a single job
@@ -278,7 +353,7 @@ class BeanstalkClient(object):
         :type timeout: int
         """
         timeout = int(timeout)
-        if not self.watchlist:
+        if not self._watchlist:
             raise ValueError('Select a tube or two before reserving a job')
         with self._sock_ctx() as socket:
             self._send_message('reserve-with-timeout {0}'.format(timeout), socket)
@@ -375,9 +450,25 @@ class BeanstalkClient(object):
         Subsequent calls to :func:put_job()` insert jobs into this tube.
         """
         with self._sock_ctx() as socket:
-            self._send_message('use {0}'.format(tube), socket)
-            self._receive_name(socket)
-            self.current_tube = tube
+            if self.current_tube != tube:
+                self.desired_tube = tube
+                self._send_message('use {0}'.format(tube), socket)
+                self._receive_name(socket)
+                self.current_tube = tube
+
+    @contextmanager
+    def using(self, tube):
+        """Context-manager to insert jobs into a specific tube
+
+        :param tube: Tube to insert to
+
+        Yields out an object which can only insert stuff into that tube
+        """
+        try:
+            current_tube = self.current_tube
+            yield BeanstalkInsertingProxy(self, tube)
+        finally:
+            self.use(current_tube)
 
     def kick_jobs(self, num_jobs):
         """Kick some number of jobs from the buried queue onto the ready queue.

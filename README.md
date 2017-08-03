@@ -32,6 +32,31 @@ client.put_job(json.dumps({"foo": "bar"}), delay=30)
 
 This will create a job with a 30-second delay on it. Note that the data for a job must be UTF-8 encodable.
 
+#### Creating Jobs in Specific Tubes
+
+Beanstalk has a notion of `tube`s (which is to say, named queues). There are several ways to put a
+job into a specific tube using pystalk:
+
+```lang=python
+#!/usr/bin/python
+
+from pystalk import BeanstalkClient
+
+client = BeanstalkClient('10.0.0.1', 11300)
+
+# method 1, matches the upstream protocol
+client.use("some_tube")
+client.put_job("some message")
+
+# method 2, using an external guard object like you would in C++ or Rust
+with client.using("some_tube") as inserter:
+    inserter.put_job("some message")
+
+
+# method 3
+client.put_job_into("some_tube", "some message")
+```
+
 ### Consuming All Available Jobs
 
 The following script will walk through all currently-READY jobs and then exit:
