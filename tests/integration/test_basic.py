@@ -1,6 +1,7 @@
 import pytest
 
 from pystalk import BeanstalkError
+import pystalk
 
 
 def test_simple_flow(beanstalk_client, tube_name):
@@ -170,3 +171,20 @@ def test_using(beanstalk_client, tube_name):
 def test_put_job_into(beanstalk_client, tube_name):
     beanstalk_client.put_job_into(tube_name, 'some_job')
     assert beanstalk_client.stats_tube(tube_name)['current-jobs-ready'] == 1
+
+
+def test_socket_timeout(beanstalkd, tube_name):
+    host, port = beanstalkd
+    client = pystalk.BeanstalkClient(host, port, socket_timeout=10)
+    client.put_job_into(tube_name, 'some_job')
+    client.watch(tube_name)
+    with pytest.raises(ValueError):
+        client.reserve_job(timeout=11)
+    client.reserve_job(timeout=1)
+
+def test_socket_timeout_none(beanstalkd, tube_name):
+    host, port = beanstalkd
+    client = pystalk.BeanstalkClient(host, port, socket_timeout=None)
+    client.put_job_into(tube_name, 'some_job')
+    client.watch(tube_name)
+    client.reserve_job(timeout=11)
