@@ -3,6 +3,11 @@ pystalk ChangeLog
 #################
 
 ======
+0.3.1
+======
+* Fix crash when setting `socket_timeout` to `None`
+
+======
 0.3.0
 ======
 * Add :py:func:`pystalk.client.BeanstalkClient.using` and :py:func:`pystalk.client.BeanstalkClient.put_job_into` as clearer APIs for inserting jobs
