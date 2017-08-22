@@ -386,8 +386,9 @@ class BeanstalkClient(object):
         :type timeout: int
         """
         timeout = int(timeout)
-        if timeout >= self.socket_timeout:
-            raise ValueError('reserve_job timeout must be < socket timeout')
+        if self.socket_timeout is not None:
+            if timeout >= self.socket_timeout:
+                raise ValueError('reserve_job timeout must be < socket timeout')
         if not self._watchlist:
             raise ValueError('Select a tube or two before reserving a job')
         with self._sock_ctx() as socket:
