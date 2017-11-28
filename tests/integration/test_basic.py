@@ -114,6 +114,17 @@ def test_peek_buried(beanstalk_client, tube_name):
     assert job.job_data == b'test_peek_buried'
 
 
+def test_peek_ready_iter(beanstalk_client, tube_name):
+    beanstalk_client.use(tube_name)
+    beanstalk_client.put_job('test_peek_ready_1')
+    beanstalk_client.put_job('test_peek_ready_2')
+    jobs = []
+    for job in beanstalk_client.peek_ready_iter():
+        jobs.append(job.job_data)
+        beanstalk_client.delete_job(job)
+    assert jobs == [b'test_peek_ready_1', b'test_peek_ready_2']
+
+
 def test_release_job(beanstalk_client, tube_name):
     beanstalk_client.use(tube_name)
     beanstalk_client.put_job('test_release_job')
@@ -181,6 +192,7 @@ def test_socket_timeout(beanstalkd, tube_name):
     with pytest.raises(ValueError):
         client.reserve_job(timeout=11)
     client.reserve_job(timeout=1)
+
 
 def test_socket_timeout_none(beanstalkd, tube_name):
     host, port = beanstalkd

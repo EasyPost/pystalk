@@ -396,29 +396,27 @@ class BeanstalkClient(object):
             job_id, job_data = self._receive_id_and_data_with_prefix(b'RESERVED', socket)
             return Job(job_id, job_data)
 
+    def _peek_common(self, typ):
+        """Common implementation for the peek_* functions"""
+        with self._sock_ctx() as socket:
+            self._send_message('peek-{0}'.format(typ), socket)
+            job_id, job_data = self._receive_id_and_data_with_prefix(b'FOUND', socket)
+            return Job(job_id, job_data)
+
     def peek_ready(self):
         """Peek at the job job on the ready queue.
 
         :rtype: :class:`Job`
         """
-        with self._sock_ctx() as socket:
-            self._send_message('peek-ready', socket)
-            job_id, job_data = self._receive_id_and_data_with_prefix(b'FOUND', socket)
-            return Job(job_id, job_data)
+        return self._peek_common('ready')
 
     def peek_delayed(self):
         """Peek at the job job on the delayed queue"""
-        with self._sock_ctx() as socket:
-            self._send_message('peek-delayed', socket)
-            job_id, job_data = self._receive_id_and_data_with_prefix(b'FOUND', socket)
-            return Job(job_id, job_data)
+        return self._peek_common('delayed')
 
     def peek_buried(self):
         """Peek at the top job on the buried queue"""
-        with self._sock_ctx() as socket:
-            self._send_message('peek-buried', socket)
-            job_id, job_data = self._receive_id_and_data_with_prefix(b'FOUND', socket)
-            return Job(job_id, job_data)
+        return self._peek_common('buried')
 
     def _common_iter(self, kallable, error):
         while True:
@@ -433,6 +431,10 @@ class BeanstalkClient(object):
     def reserve_iter(self):
         """Reserve jobs as an iterator. Ends iteration when there are no more jobs immediately available"""
         return self._common_iter(lambda: self.reserve_job(0), 'TIMED_OUT')
+
+    def peek_ready_iter(self):
+        """Peek at ready jobs in sequence"""
+        return self._common_iter(self.peek_ready, 'NOT_FOUND')
 
     def peek_delayed_iter(self):
         """Peek at delayed jobs in sequence"""
