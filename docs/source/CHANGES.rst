@@ -2,6 +2,11 @@
 pystalk ChangeLog
 #################
 
+=====
+NEXT
+=====
+* Add `peek_ready_iter` mirroring `peek_delayed_iter` and `peek_buried_iter`
+
 ======
 0.3.1
 ======
