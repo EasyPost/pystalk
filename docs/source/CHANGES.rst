@@ -3,7 +3,7 @@ pystalk ChangeLog
 #################
 
 =====
-NEXT
+0.4.0
 =====
 * Add :py:func:`pystalk.client.BeanstalkClient.peek_ready_iter` mirroring `peek_delayed_iter` and `peek_buried_iter`
 * Add :py:func:`pystalk.client.BeanstalkClient.kick_job` to kick a single job by ID
