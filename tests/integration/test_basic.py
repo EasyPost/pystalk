@@ -182,9 +182,33 @@ def test_socket_timeout(beanstalkd, tube_name):
         client.reserve_job(timeout=11)
     client.reserve_job(timeout=1)
 
+
 def test_socket_timeout_none(beanstalkd, tube_name):
     host, port = beanstalkd
     client = pystalk.BeanstalkClient(host, port, socket_timeout=None)
     client.put_job_into(tube_name, 'some_job')
     client.watch(tube_name)
     client.reserve_job(timeout=11)
+
+
+def test_kick_job(beanstalk_client, tube_name):
+    beanstalk_client.put_job_into(tube_name, 'some_job')
+    beanstalk_client.watch(tube_name)
+    # PEEK-BURIED relies on the USEd tube, not the WATCHed tube
+    beanstalk_client.use(tube_name)
+    j = beanstalk_client.reserve_job(0)
+    assert j is not None
+    beanstalk_client.bury_job(j)
+    # make a bunch of extra buried jobs after it in the FIFO
+    for _ in range(10):
+        beanstalk_client.put_job_into(tube_name, 'some_job')
+        beanstalk_client.bury_job(beanstalk_client.reserve_job(0))
+    assert beanstalk_client.stats_tube(tube_name)['current-jobs-ready'] == 0
+    assert beanstalk_client.stats_tube(tube_name)['current-jobs-buried'] == 11
+    j2 = beanstalk_client.peek_buried()
+    assert j2.job_id == j.job_id
+    beanstalk_client.kick_job(j.job_id)
+    assert beanstalk_client.stats_tube(tube_name)['current-jobs-ready'] == 1
+    assert beanstalk_client.stats_tube(tube_name)['current-jobs-buried'] == 10
+    j3 = beanstalk_client.peek_ready()
+    assert j3.job_id == j.job_id
