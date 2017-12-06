@@ -482,6 +482,15 @@ class BeanstalkClient(object):
             self._send_message('release {0} {1} {2}\r\n'.format(job_id, pri, delay), socket)
             return self._receive_word(socket, b'RELEASED', b'BURIED')
 
+    def kick_job(self, job_id):
+        """Kick the given job id. The job must either be in the DELAYED or BURIED state and will be immediately moved to
+        the READY state."""
+        if hasattr(job_id, 'job_id'):
+            job_id = job_id.job_id
+        with self._sock_ctx() as socket:
+            self._send_message('kick-job {0}'.format(job_id), socket)
+            self._receive_word(socket, b'KICKED')
+
     def use(self, tube):
         """Start producing jobs into the given tube.
 
