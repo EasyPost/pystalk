@@ -9,7 +9,7 @@ with open('requirements.txt', 'r') as f:
 
 setup(
     name="pystalk",
-    version="0.4.0",
+    version="0.5.0",
     author="EasyPost",
     author_email="oss@easypost.com",
     url="https://github.com/easypost/pystalk",
