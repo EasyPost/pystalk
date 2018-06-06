@@ -98,7 +98,8 @@ class BeanstalkClient(object):
         ipv6_md = re.match(r'^\[([0-9a-fA-F:]+)\](:[0-9]+)?$', parts.netloc)
         if ipv6_md:
             host = ipv6_md.group(1)
-            port = ipv6_md.group(2) or 11300
+            port = ipv6_md.group(2) or '11300'
+            port = port.lstrip(':')
         elif ':' in parts.netloc:
             host, port = parts.netloc.rsplit(':', 1)
         else:

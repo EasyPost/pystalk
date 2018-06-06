@@ -1,6 +1,6 @@
 import pystalk
 
-import unittest
+import pytest
 
 
 class MockBeanstalkServerSocket(object):
@@ -18,22 +18,34 @@ class MockBeanstalkServerSocket(object):
         return resp
 
 
-class SimpleBeanstalkTestCase(unittest.TestCase):
-    def setUp(self):
-        self.client = pystalk.BeanstalkClient('foo', 0)
-        self.server = MockBeanstalkServerSocket()
-        self.client.socket = self.server
-
-    def test_stats(self):
-        self.server.responses.append(b'OK 17\r\n--- {"foo": "bar"}\r\n')
-        assert self.client.stats() == {'foo': 'bar'}
-        assert self.server.received == [b'stats\r\n']
+@pytest.fixture
+def server():
+    return MockBeanstalkServerSocket()
 
 
-def test_from_uri():
-    client = pystalk.BeanstalkClient.from_uri('beanstalk://foo')
-    assert client.host == 'foo'
-    assert client.port == 11300
-    client = pystalk.BeanstalkClient.from_uri('beanstalk://foo:11300')
-    assert client.host == 'foo'
-    assert client.port == 11300
+@pytest.fixture
+def client(server):
+    client = pystalk.BeanstalkClient('pystalk.example.com', 0)
+    client.socket = server
+    return client
+
+
+def test_stats(client, server):
+    server.responses.append(b'OK 17\r\n--- {"foo": "bar"}\r\n')
+    assert client.stats() == {'foo': 'bar'}
+    assert server.received == [b'stats\r\n']
+
+
+@pytest.mark.parametrize('uri,expected_host,expected_port', [
+    ('beanstalkd://foo', 'foo', 11300),
+    ('beanstalk://foo', 'foo', 11300),
+    ('beanstalk://foo:11301', 'foo', 11301),
+    ('beanstalk://1.2.3.4', '1.2.3.4', 11300),
+    ('beanstalk://1.2.3.4:11301', '1.2.3.4', 11301),
+    ('beanstalk://[::1]', '::1', 11300),
+    ('beanstalk://[::1]:11301', '::1', 11301),
+])
+def test_from_uri(uri, expected_host, expected_port):
+    client = pystalk.BeanstalkClient.from_uri(uri)
+    assert client.host == expected_host
+    assert client.port == expected_port
