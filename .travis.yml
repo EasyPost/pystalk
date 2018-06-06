@@ -1,6 +1,5 @@
 language: python
 python:
-  - "2.6"
   - "2.7"
   - "3.3"
   - "3.4"
@@ -9,7 +8,7 @@ python:
   - "pypy2.7"
   - "pypy3.5"
 before_script:
-  - wget https://github.com/kr/beanstalkd/archive/v1.10.tar.gz -o /tmp/beanstalkd.tar.gz
+  - wget https://github.com/kr/beanstalkd/archive/v1.10.tar.gz -O /tmp/beanstalkd.tar.gz
   - tar -C /tmp -xvf /tmp/beanstalkd.tar.gz
   - cd /tmp/beanstalkd-1.10 && make
   - export BEANSTALKD_PATH=/tmp/beanstlakd-1.10/beanstalkd
