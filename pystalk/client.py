@@ -94,7 +94,15 @@ class BeanstalkClient(object):
 
     @classmethod
     def from_uri(cls, uri, socket_timeout=None, auto_decode=False):
+        """Construct a synchronous Beanstalk Client from a URI.
+
+        The URI may be of the form beanstalk://host:port or beanstalkd://host:port
+
+        IPv6 literals must be wrapped in brackets as per RFC 2732.
+        """
         parts = six.moves.urllib.parse.urlparse(uri)
+        if parts.scheme.lower() not in ('beanstalk', 'beanstalkd'):
+            raise ValueError('Invalid scheme %s' % parts.scheme)
         ipv6_md = re.match(r'^\[([0-9a-fA-F:]+)\](:[0-9]+)?$', parts.netloc)
         if ipv6_md:
             host = ipv6_md.group(1)

@@ -49,3 +49,12 @@ def test_from_uri(uri, expected_host, expected_port):
     client = pystalk.BeanstalkClient.from_uri(uri)
     assert client.host == expected_host
     assert client.port == expected_port
+
+
+@pytest.mark.parametrize('uri', [
+    'branstalk://foo:12345',
+    'beanstalk://foo:bar',
+])
+def test_invalid_uri_fails(uri):
+    with pytest.raises(ValueError):
+        pystalk.BeanstalkClient.from_uri(uri)
