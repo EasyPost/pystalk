@@ -8,7 +8,7 @@ This project was initially created for [beancmd](https://github.com/EasyPost/bea
 
 ## Requirements / Installing
 
-This software works with Python 2.7, 3.3, 3.4, and 3.5. It'll probably work with Python 3.6 as well.
+This software works with Python 2.7, and 3.3+.
 
 It does not support any asynchronous event loops and has not been tested with gevent. It's designed for simple,
 synchronous use.
@@ -19,7 +19,7 @@ You should be able to install it from [PyPI](https://pypi.python.org) with `pip 
 
 ### Creating Jobs
 
-```lang=python
+```python
 #!/usr/bin/python
 
 import json
@@ -37,7 +37,7 @@ This will create a job with a 30-second delay on it. Note that the data for a jo
 Beanstalk has a notion of `tube`s (which is to say, named queues). There are several ways to put a
 job into a specific tube using pystalk:
 
-```lang=python
+```python
 #!/usr/bin/python
 
 from pystalk import BeanstalkClient
@@ -61,7 +61,7 @@ client.put_job_into("some_tube", "some message")
 
 The following script will walk through all currently-READY jobs and then exit:
 
-```lang=python
+```python
 #!/usr/bin/python
 
 from pystalk import BeanstalkClient
@@ -82,7 +82,7 @@ Note that, even though we require that job data be UTF-8 encodeable in the `put_
 
 The following will reserve jobs from a group of Beanstalk servers, fairly rotating between them.
 
-```lang=python
+```python
 #!/usr/bin/python
 
 from myapp import execute_job
