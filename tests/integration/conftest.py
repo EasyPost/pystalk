@@ -29,8 +29,9 @@ def beanstalkd(tmpdir_session):
     _, port = s.getsockname()
     s.close()
     os.makedirs(wal_dir)
+    beanstalkd_path = os.environ.get('BEANSTALKD_PATH', 'beanstalkd')
     p = subprocess.Popen([
-        'beanstalkd',
+        beanstalkd_path,
         '-b', wal_dir,
         '-l', '127.0.0.1',
         '-p', str(port)
