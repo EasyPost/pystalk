@@ -28,3 +28,12 @@ class SimpleBeanstalkTestCase(unittest.TestCase):
         self.server.responses.append(b'OK 17\r\n--- {"foo": "bar"}\r\n')
         assert self.client.stats() == {'foo': 'bar'}
         assert self.server.received == [b'stats\r\n']
+
+
+def test_from_uri():
+    client = pystalk.BeanstalkClient.from_uri('beanstalk://foo')
+    assert client.host == 'foo'
+    assert client.port == 11300
+    client = pystalk.BeanstalkClient.from_uri('beanstalk://foo:11300')
+    assert client.host == 'foo'
+    assert client.port == 11300

@@ -2,6 +2,9 @@ from contextlib import contextmanager
 import attr
 import socket
 import yaml
+import re
+
+import six
 
 
 @attr.s(frozen=True)
@@ -88,6 +91,21 @@ class BeanstalkClient(object):
         self.desired_tube = 'default'
         self.desired_watchlist = set(['default'])
         self.auto_decode = auto_decode
+
+    @classmethod
+    def from_uri(cls, uri, socket_timeout=None, auto_decode=False):
+        parts = six.moves.urllib.parse.urlparse(uri)
+        ipv6_md = re.match(r'^\[([0-9a-fA-F:]+)\](:[0-9]+)?$', parts.netloc)
+        if ipv6_md:
+            host = ipv6_md.group(1)
+            port = ipv6_md.group(2) or 11300
+        elif ':' in parts.netloc:
+            host, port = parts.netloc.rsplit(':', 1)
+        else:
+            host = parts.netloc
+            port = 11300
+        port = int(port)
+        return cls(host, port, socket_timeout=socket_timeout, auto_decode=auto_decode)
 
     def _reset_state(self):
         self._watchlist = set(['default'])
