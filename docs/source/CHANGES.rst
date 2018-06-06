@@ -3,6 +3,11 @@ pystalk ChangeLog
 #################
 
 =====
+UNRELEASED
+=====
+* Move tests from CircleCI to Travis-CI
+
+=====
 0.4.0
 =====
 * Add :py:func:`pystalk.client.BeanstalkClient.peek_ready_iter` mirroring `peek_delayed_iter` and `peek_buried_iter`
