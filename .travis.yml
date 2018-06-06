@@ -10,7 +10,7 @@ python:
 before_script:
   - wget https://github.com/kr/beanstalkd/archive/v1.10.tar.gz -O /tmp/beanstalkd.tar.gz
   - tar -C /tmp -xvf /tmp/beanstalkd.tar.gz
-  - cd /tmp/beanstalkd-1.10 && make && export BEANSTALKD_PATH="$(pwd)/beanstalkd"
+  - pushd /tmp/beanstalkd-1.10 && make && export BEANSTALKD_PATH="$(pwd)/beanstalkd" && popd
 install:
   - "pip install -r requirements-tests.txt"
   - "pip install ."
