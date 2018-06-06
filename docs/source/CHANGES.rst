@@ -6,6 +6,7 @@ pystalk ChangeLog
 UNRELEASED
 =====
 * Move tests from CircleCI to Travis-CI
+* Add :py:func:`pystalk.client.BeanstalkClient.from_uri` to create a `BeanstalkClient` instance from a URI/URL
 
 =====
 0.4.0
