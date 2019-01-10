@@ -26,7 +26,7 @@ class Job(object):
 class BeanstalkError(Exception):
     """Common error raised when something goes wrong with beanstalk"""
 
-    message = attr.ib(convert=lambda m: m.decode('ascii'))
+    message = attr.ib(converter=lambda m: m.decode('ascii'))
 
 
 def yaml_load(fo):
