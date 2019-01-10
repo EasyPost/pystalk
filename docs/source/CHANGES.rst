@@ -3,6 +3,11 @@ pystalk ChangeLog
 #################
 
 =====
+0.5.1
+=====
+* attrs changed a kwarg from `convert` to `converter`
+
+=====
 0.5.0
 =====
 * Move tests from CircleCI to Travis-CI
