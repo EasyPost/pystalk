@@ -1,4 +1,6 @@
 import os.path
+import sys
+import io
 from setuptools import setup, find_packages
 
 project_root = os.path.abspath(os.path.dirname(__file__))
@@ -8,7 +10,12 @@ with open(os.path.join(project_root, 'requirements.txt'), 'r') as f:
     for line in f:
         install_requires.append(line.rstrip())
 
-with open(os.path.join(project_root, 'README.md'), encoding='utf-8') as f:
+if sys.version_info < (3, 0):
+    long_description_open = io.open
+else:
+    long_description_open = open
+
+with long_description_open(os.path.join(project_root, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 
