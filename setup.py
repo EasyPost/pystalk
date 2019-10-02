@@ -1,3 +1,4 @@
+import sys
 import os.path
 from setuptools import setup, find_packages
 
@@ -8,7 +9,13 @@ with open(os.path.join(project_root, 'requirements.txt'), 'r') as f:
     for line in f:
         install_requires.append(line.rstrip())
 
-with open(os.path.join(project_root, 'README.md'), encoding='utf-8') as f:
+
+read_kwargs = {}
+
+if sys.version_info > (3, 0):
+    read_kwargs['encoding'] = 'utf-8'
+
+with open(os.path.join(project_root, 'README.md'), **read_kwargs) as f:
     long_description = f.read()
 
 
