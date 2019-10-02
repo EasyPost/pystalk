@@ -22,7 +22,7 @@ class Job(object):
     job_data = attr.ib()
 
 
-if attr.__version_info__ >= (19, 2, 0):
+if getattr(attr, "__version_info__", (0,)) >= (19, 2):
     _attrs_kwargs = dict(eq=True)
 else:
     _attrs_kwargs = dict(cmp=True)
