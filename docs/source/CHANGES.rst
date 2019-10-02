@@ -2,6 +2,12 @@
 pystalk ChangeLog
 #################
 
+====
+NEXT
+====
+* add compatibility for `attrs` 19.2.0 and above
+* drop support for Python 3.3.x
+
 =====
 0.5.1
 =====

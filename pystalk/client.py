@@ -22,7 +22,13 @@ class Job(object):
     job_data = attr.ib()
 
 
-@attr.s(frozen=True, hash=True, cmp=True)
+if getattr(attr, "__version_info__", (0,)) >= (19, 2):
+    _attrs_kwargs = dict(eq=True)
+else:
+    _attrs_kwargs = dict(cmp=True)
+
+
+@attr.s(frozen=True, hash=True, **_attrs_kwargs)
 class BeanstalkError(Exception):
     """Common error raised when something goes wrong with beanstalk"""
 
