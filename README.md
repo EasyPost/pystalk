@@ -8,7 +8,7 @@ This project was initially created for [beancmd](https://github.com/EasyPost/bea
 
 ## Requirements / Installing
 
-This software works with Python 2.7, and 3.3+.
+This software works with Python 2.7, and 3.5+.
 
 It does not support any asynchronous event loops and has not been tested with gevent. It's designed for simple,
 synchronous use.
