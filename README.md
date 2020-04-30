@@ -3,7 +3,7 @@ compatible with both Python 2 and Python 3.
 
 This project was initially created for [beancmd](https://github.com/EasyPost/beancmd). You may also be interested in that tool!
 
-[![TravisCI Build Status](https://travis-ci.org/EasyPost/pystalk.svg?branch=master)](https://travis-ci.org/EasyPost/pystalk)
+[![Build Status](https://travis-ci.com/EasyPost/pystalk.svg?branch=master)](https://travis-ci.com/EasyPost/pystalk)
 [![ReadTheDocs](https://readthedocs.org/projects/pip/badge/?version=latest)](http://pystalk.readthedocs.io/en/latest/)
 
 ## Requirements / Installing
