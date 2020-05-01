@@ -3,12 +3,12 @@ compatible with both Python 2 and Python 3.
 
 This project was initially created for [beancmd](https://github.com/EasyPost/beancmd). You may also be interested in that tool!
 
-[![TravisCI Build Status](https://travis-ci.org/EasyPost/pystalk.svg?branch=master)](https://travis-ci.org/EasyPost/pystalk)
+[![Build Status](https://travis-ci.com/EasyPost/pystalk.svg?branch=master)](https://travis-ci.com/EasyPost/pystalk)
 [![ReadTheDocs](https://readthedocs.org/projects/pip/badge/?version=latest)](http://pystalk.readthedocs.io/en/latest/)
 
 ## Requirements / Installing
 
-This software works with Python 2.7, and 3.3+.
+This software works with Python 2.7, and 3.5+.
 
 It does not support any asynchronous event loops and has not been tested with gevent. It's designed for simple,
 synchronous use.
