@@ -2,6 +2,11 @@
 pystalk ChangeLog
 #################
 
+=====
+0.6.1
+=====
+* More emphatically remove `tests` from distributed packages
+
 ====
 0.6.0
 ====

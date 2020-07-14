@@ -21,7 +21,7 @@ with open(os.path.join(project_root, 'README.md'), **read_kwargs) as f:
 
 setup(
     name="pystalk",
-    version="0.6.0",
+    version="0.6.1",
     author="EasyPost",
     author_email="oss@easypost.com",
     url="https://github.com/easypost/pystalk",
@@ -30,7 +30,7 @@ setup(
     long_description_content_type='text/markdown',
     license="ISC",
     install_requires=install_requires,
-    packages=find_packages(exclude=['tests']),
+    packages=find_packages(exclude=['tests', 'tests.*']),
     python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4',
     project_urls={
         'CI': 'https://travis-ci.com/EasyPost/pystalk',
