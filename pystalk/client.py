@@ -294,7 +294,7 @@ class BeanstalkClient(object):
         """
         with self._sock_ctx() as socket:
             message = 'put {pri} {delay} {ttr} {datalen}\r\n'.format(
-                pri=pri, delay=delay, ttr=ttr, datalen=len(data), data=data
+                pri=pri, delay=delay, ttr=ttr, datalen=len(data)
             ).encode('utf-8')
             if not isinstance(data, bytes):
                 data = data.encode('utf-8')
