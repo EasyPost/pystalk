@@ -3,7 +3,7 @@ compatible with both Python 2 and Python 3.
 
 This project was initially created for [beancmd](https://github.com/EasyPost/beancmd). You may also be interested in that tool!
 
-[![Build Status](https://travis-ci.com/EasyPost/pystalk.svg?branch=master)](https://travis-ci.com/EasyPost/pystalk)
+[![CI](https://github.com/EasyPost/pystalk/workflows/CI/badge.svg)](https://github.com/EasyPost/pystalk/actions?query=workflow%3ACI)
 [![ReadTheDocs](https://readthedocs.org/projects/pip/badge/?version=latest)](http://pystalk.readthedocs.io/en/latest/)
 
 ## Requirements / Installing
