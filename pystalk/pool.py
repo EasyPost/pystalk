@@ -1,8 +1,11 @@
 from typing import List, Optional, Union
+from collections import deque
 import time
 import random
 import socket
 import logging
+
+import attr
 
 from .client import BeanstalkClient, BeanstalkError
 
@@ -19,13 +22,29 @@ class NoMoreClients(Exception):
         return "No clients can process requests at this time"
 
 
+@attr.s
+class ClientRecord(object):
+    client: BeanstalkClient = attr.ib()
+    last_failed_at: Optional[float] = attr.ib(default=None)
+
+    def is_ok(self, backoff_time, now=None):
+        if now is None:
+            now = _get_time()
+        if self.last_failed_at is None:
+            return True
+        return self.last_failed_at < (now - backoff_time)
+
+    def mark_failed(self, now=None):
+        self.last_failed_at = _get_time()
+
+
 class ProductionPool(object):
     """A pool for producing jobs into a list of beanstalk servers. When an error occurs, job insertion
     will be re-attempted on the next server in the pool.
 
     :param clients: List of beanstalk client instances to use
-    :param rotate_time: Number of seconds after which connections will be rotated (for load-balancing). Set to None
-        to disable rotation
+    :param round_robin: If true, every insertion will go to a different server in the pool. If false,
+        the server will only be changed when an exception occurs.
     :param backoff_time: Number of seconds after an error before a server will be reused
     :param shuffle: Randomly shuffle clients at initialization
 
@@ -37,24 +56,23 @@ class ProductionPool(object):
     This method of pooling is only suitable for use when *producing* jobs. For *consuming* jobs from a cluster of
     beanstalkd servers, consider the `pystalkworker` project.
     """
-    def __init__(self, clients: List[BeanstalkClient], rotate_time: Optional[float] = 600.0,
+    def __init__(self, clients: List[BeanstalkClient], round_robin: bool = True,
                  backoff_time: float = 10.0, shuffle: bool = True):
         if not clients:
             raise ValueError('Must pass at least one BeanstalkClient')
         self._current_client_index = 0
-        self._last_rotate_time = _get_time()
-        self._clients = clients[:]
+        clients = [ClientRecord(c) for c in clients]
         if shuffle:
-            random.shuffle(self._clients)
-        self._last_failure = [None for _ in clients]
+            random.shuffle(clients)
+        self._clients = deque(clients)
         self.current_tube: Optional[str] = None
-        self.rotate_time = rotate_time
+        self.round_robin = round_robin
         self.backoff_time = backoff_time
         self.log = logging.getLogger('pystalk.ProductionPool')
 
     @classmethod
     def from_uris(cls, uris: List[str], socket_timeout: float = None, auto_decode: bool = False,
-                  rotate_time: Optional[float] = 600.0, backoff_time: float = 10.0, shuffle: bool = True):
+                  round_robin: bool = True, backoff_time: float = 10.0, shuffle: bool = True):
         """Construct a pool from a list of URIs. See `pystalk.client.Client.from_uri` for more information.
 
         :param uris: A list of URIs
@@ -64,7 +82,7 @@ class ProductionPool(object):
         return cls(
             clients=[BeanstalkClient.from_uri(uri, socket_timeout=socket_timeout, auto_decode=auto_decode)
                      for uri in uris],
-            rotate_time=rotate_time,
+            round_robin=round_robin,
             backoff_time=backoff_time,
             shuffle=shuffle
         )
@@ -79,40 +97,39 @@ class ProductionPool(object):
         self.current_tube = tube
 
     def _get_client(self):
-        now = _get_time()
-        start = 0
-        if self.rotate_time:
-            if now - self._last_rotate_time > self.rotate_time:
-                start = 1
-                self._last_rotate_time = now
-        for index_offset in range(start, len(self._clients)):
-            index = (self._current_client_index + index_offset) % len(self._clients)
-            if self._last_failure[index] is None or now - self._last_failure[index] > self.backoff_time:
-                self._current_client_index = index
-                client = self._clients[index]
-                if client.current_tube != self.current_tube:
-                    client.use(self.current_tube)
-                return index, client
-        self.log.error('All clients are failed! %r', self._last_failure)
+        # attempt to find the next live client and activate it
+        for _ in range(len(self._clients)):
+            if self._clients[0].is_ok(self.backoff_time):
+                client = self._clients[0]
+                if client.client.current_tube != self.current_tube:
+                    client.client.use(self.current_tube)
+                return client
+            else:
+                self._clients.rotate()
+        self.log.error('All clients are failed!')
         raise NoMoreClients()
 
-    def _mark_client_failed(self, client_index: int):
-        self._last_failure[client_index] = _get_time()
+    def _mark_client_failed(self):
+        self._clients[0].mark_failed()
+        self._clients.rotate()
 
     def _attempt_on_all_clients(self, thunk):
         while True:
             try:
-                index, client = self._get_client()
-                return thunk(client)
+                client_record = self._get_client()
+                rv = thunk(client_record.client)
+                if self.round_robin:
+                    self._clients.rotate()
+                return rv
             except BeanstalkError as e:
                 if e.message in RETRIABLE_ERRORS:
-                    self.log.warning('error on server %r (%d): %r', client, index, e)
-                    self._mark_client_failed(index)
+                    self.log.warning('error on server %r: %r', client_record, e)
+                    self._mark_client_failed()
                 else:
                     raise
             except (socket.error) as e:
-                self.log.warning('error on server %r (%d): %r', client, index, e)
-                self._mark_client_failed(index)
+                self.log.warning('error on server %r: %r', client_record, e)
+                self._mark_client_failed()
 
     def put_job(self, data: Union[str, bytes], pri: int = 65536, delay: int = 0, ttr: int = 120):
         """Insert a new job into whatever queue is currently USEd
