@@ -83,7 +83,8 @@ class BeanstalkClient(object):
          Setting socket timeout to a value lower than the value you pass to blocking functions like
          :func:`reserve_job()` will cause errors!
     """
-    def __init__(self, host: str, port: int = 11300, socket_timeout: Optional[float] = None, auto_decode: bool=False):
+    def __init__(self, host: str, port: int = 11300, socket_timeout: Optional[float] = None,
+                 auto_decode: bool = False):
         """Construct a synchronous Beanstalk Client. Does not connect!"""
         self.host = host
         self.port = port
