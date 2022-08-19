@@ -61,10 +61,10 @@ class ProductionPool(object):
         if not clients:
             raise ValueError('Must pass at least one BeanstalkClient')
         self._current_client_index = 0
-        clients = [ClientRecord(c) for c in clients]
+        client_records = [ClientRecord(c) for c in clients]
         if shuffle:
-            random.shuffle(clients)
-        self._clients = deque(clients)
+            random.shuffle(client_records)
+        self._clients = deque(client_records)
         self.current_tube: Optional[str] = None
         self.round_robin = round_robin
         self.backoff_time = backoff_time
