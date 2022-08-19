@@ -1,5 +1,4 @@
-**`pystalk`** is an extremely simple client for [beanstalkd](http://kr.github.io/beanstalkd/). It is
-compatible with both Python 2 and Python 3.
+**`pystalk`** is an extremely simple Python client for [beanstalkd](http://kr.github.io/beanstalkd/).
 
 This project was initially created for [beancmd](https://github.com/EasyPost/beancmd). You may also be interested in that tool!
 
@@ -8,7 +7,7 @@ This project was initially created for [beancmd](https://github.com/EasyPost/bea
 
 ## Requirements / Installing
 
-This software works with Python 3.6+.
+This software works with Python 3.6+. It should work PyPy3 but has not been tested extensively.
 
 It does not support any asynchronous event loops and has not been tested with gevent. It's designed for simple,
 synchronous use.
