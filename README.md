@@ -5,6 +5,10 @@ This project was initially created for [beancmd](https://github.com/EasyPost/bea
 [![CI](https://github.com/EasyPost/pystalk/workflows/CI/badge.svg)](https://github.com/EasyPost/pystalk/actions?query=workflow%3ACI)
 [![ReadTheDocs](https://readthedocs.org/projects/pip/badge/?version=latest)](http://pystalk.readthedocs.io/en/latest/)
 
+Note that _none_ of the objects in this package are inherently synchronized (thread-safe), and if you are going to use
+them from multiple threads, you should always protect them with a mutex. Clients are also not fork-safe, and should be
+initialized after any forking.
+
 ## Requirements / Installing
 
 This software works with Python 3.6+. It should work PyPy3 but has not been tested extensively.
