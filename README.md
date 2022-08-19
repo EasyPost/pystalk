@@ -8,7 +8,7 @@ This project was initially created for [beancmd](https://github.com/EasyPost/bea
 
 ## Requirements / Installing
 
-This software works with Python 2.7, and 3.5+.
+This software works with Python 3.6+.
 
 It does not support any asynchronous event loops and has not been tested with gevent. It's designed for simple,
 synchronous use.
@@ -78,7 +78,25 @@ for job in client.reserve_iter():
 
 Note that, even though we require that job data be UTF-8 encodeable in the `put_job` method, we do not decode for you -- the job data that comes out is a byte-string in Python 3.5. You should call `.decode("utf-8")` on it if you want to get the input data back out. If you would like that behavior, pass `auto_decode=True` to the `BeanstalkClient` constructor; note that this might make it difficult for you to consume data injected by other systems which don't assume UTF-8.
 
-### Multiple Job Servers
+### Producing into Multiple Job Servers
+
+This library includes the `ProductionPool` class, which will insert jobs into beanstalk servers, rotating between them
+when an error occurs. Example usage:
+
+```python
+from pystalk import BeanstalkClient, ProductionPool
+
+pool = ProductionPool.from_uris(
+    ['beanstalkd://10.0.0.1:10300', 'beanstalkd://10.0.0.2:10300'],
+    socket_timeout=10
+)
+pool.put_job_into('some tube', 'some job')
+```
+
+The Pool **only** supports the `put_job` and `put_job_into` methods and makes no fairness guarantees; you should not use
+it for consumption.
+
+### Consuming From Multiple Job Servers
 
 The following will reserve jobs from a group of Beanstalk servers, fairly rotating between them.
 

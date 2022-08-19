@@ -3,6 +3,13 @@ pystalk ChangeLog
 #################
 
 =====
+NEXT
+======
+* Drop support for Python < 3.6
+* Add `pystalk.pool.ProductionPool`
+* Add some `typing` annotations
+
+=====
 0.6.1
 =====
 * More emphatically remove `tests` from distributed packages

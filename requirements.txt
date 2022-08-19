@@ -1,3 +1,6 @@
 PyYAML>=3.0
-attrs>=17.4
+attrs>=19.2
 six
+mypy==0.971
+types-PyYAML
+types-six

@@ -44,3 +44,5 @@ jobs:
         run: pytest --cov=pystalk/ --cov-report=term-missing --cov-fail-under=60 tests/
         env:
           BEANSTALKD_PATH: ~/beanstalks/beanstalkd
+      - name: check mypy
+        run: mypy pystalk/ tests/

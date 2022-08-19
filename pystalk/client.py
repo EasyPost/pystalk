@@ -3,6 +3,7 @@ import attr
 import socket
 import yaml
 import re
+from typing import Optional, Union
 
 import six
 
@@ -22,17 +23,11 @@ class Job(object):
     job_data = attr.ib()
 
 
-if getattr(attr, "__version_info__", (0,)) >= (19, 2):
-    _attrs_kwargs = dict(eq=True)
-else:
-    _attrs_kwargs = dict(cmp=True)
-
-
-@attr.s(frozen=True, hash=True, **_attrs_kwargs)
+@attr.s(frozen=True, hash=True, eq=True)
 class BeanstalkError(Exception):
     """Common error raised when something goes wrong with beanstalk"""
 
-    message = attr.ib(converter=lambda m: m.decode('ascii'))
+    message: str = attr.ib(converter=lambda m: m.decode('ascii'))
 
 
 def yaml_load(fo):
@@ -47,10 +42,10 @@ def yaml_load(fo):
 class BeanstalkInsertingProxy(object):
     """Proxy object yielded by :func:`BeanstalkClient.using()`"""
 
-    beanstalk_client = attr.ib()
-    tube = attr.ib()
+    beanstalk_client: 'BeanstalkClient' = attr.ib()
+    tube: str = attr.ib()
 
-    def put_job(self, data, pri=65536, delay=0, ttr=120):
+    def put_job(self, data: Union[str, bytes], pri: int = 65536, delay: int = 0, ttr: int = 120):
         """Method to insert a job into the tube selected with :func:`BeanstalkClient.using`.
 
         :param data: Job body
@@ -88,7 +83,7 @@ class BeanstalkClient(object):
          Setting socket timeout to a value lower than the value you pass to blocking functions like
          :func:`reserve_job()` will cause errors!
     """
-    def __init__(self, host, port=11300, socket_timeout=None, auto_decode=False):
+    def __init__(self, host: str, port: int = 11300, socket_timeout: Optional[float] = None, auto_decode: bool=False):
         """Construct a synchronous Beanstalk Client. Does not connect!"""
         self.host = host
         self.port = port
@@ -271,7 +266,7 @@ class BeanstalkClient(object):
             stats = yaml_load(body)
             return stats
 
-    def put_job(self, data, pri=65536, delay=0, ttr=120):
+    def put_job(self, data: Union[str, bytes], pri: int = 65536, delay: int = 0, ttr: int = 120):
         """Insert a new job into whatever queue is currently USEd
 
         :param data: Job body
@@ -303,7 +298,7 @@ class BeanstalkClient(object):
             self._send_message(message, socket)
             return self._receive_id(socket)
 
-    def put_job_into(self, tube_name, data, pri=65536, delay=0, ttr=120):
+    def put_job_into(self, tube_name: str, data: Union[str, bytes], pri: int = 65536, delay: int = 0, ttr: int = 120):
         """Insert a new job into a specific queue. Wrapper around :func:`put_job`.
 
         :param tube_name: Tube name

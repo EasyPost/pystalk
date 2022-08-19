@@ -11,7 +11,7 @@ import pytest
 import pystalk
 
 
-@pytest.yield_fixture(scope='session')
+@pytest.fixture(scope='session')
 def tmpdir_session():
     d = tempfile.mkdtemp()
     try:
@@ -20,7 +20,7 @@ def tmpdir_session():
         shutil.rmtree(d)
 
 
-@pytest.yield_fixture(scope='session')
+@pytest.fixture(scope='session')
 def beanstalkd(tmpdir_session):
     wal_dir = os.path.join(tmpdir_session, 'wal')
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
