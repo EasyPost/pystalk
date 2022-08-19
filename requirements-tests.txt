@@ -3,3 +3,6 @@ pytest-cov==3.0.*
 pytest-mock==3.8.*
 mock
 flake8
+mypy==0.971
+types-PyYAML
+types-six
