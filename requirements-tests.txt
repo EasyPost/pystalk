@@ -1,6 +1,6 @@
-pytest==7.1.*
-pytest-cov==3.0.*
-pytest-mock==3.8.*
+pytest==7.*
+pytest-cov==3.*
+pytest-mock==3.*
 mock
 flake8
 mypy==0.971
