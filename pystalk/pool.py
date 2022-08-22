@@ -46,7 +46,7 @@ class ProductionPool(object):
     :param round_robin: If true, every insertion will go to a different server in the pool. If false,
         the server will only be changed when an exception occurs.
     :param backoff_time: Number of seconds after an error before a server will be reused
-    :param shuffle: Randomly shuffle clients at initialization
+    :param initial_shuffle: Randomly shuffle clients at initialization
 
     All clients should have a socket timeout set or else some errors will not be detected.
 
@@ -57,12 +57,11 @@ class ProductionPool(object):
     beanstalkd servers, consider the `pystalkworker` project.
     """
     def __init__(self, clients: List[BeanstalkClient], round_robin: bool = True,
-                 backoff_time: float = 10.0, shuffle: bool = True):
+                 backoff_time: float = 10.0, initial_shuffle: bool = True):
         if not clients:
             raise ValueError('Must pass at least one BeanstalkClient')
-        self._current_client_index = 0
         client_records = [ClientRecord(c) for c in clients]
-        if shuffle:
+        if initial_shuffle:
             random.shuffle(client_records)
         self._clients = deque(client_records)
         self.current_tube: Optional[str] = None
@@ -72,7 +71,7 @@ class ProductionPool(object):
 
     @classmethod
     def from_uris(cls, uris: List[str], socket_timeout: float = None, auto_decode: bool = False,
-                  round_robin: bool = True, backoff_time: float = 10.0, shuffle: bool = True):
+                  round_robin: bool = True, backoff_time: float = 10.0, initial_shuffle: bool = True):
         """Construct a pool from a list of URIs. See `pystalk.client.Client.from_uri` for more information.
 
         :param uris: A list of URIs
@@ -84,7 +83,7 @@ class ProductionPool(object):
                      for uri in uris],
             round_robin=round_robin,
             backoff_time=backoff_time,
-            shuffle=shuffle
+            initial_shuffle=initial_shuffle
         )
 
     def use(self, tube: str):

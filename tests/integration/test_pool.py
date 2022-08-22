@@ -28,7 +28,7 @@ def test_one_good_one_bad(tube_name, mocker, beanstalk_client, caplog):
     bad_client = mocker.Mock()
     bad_client.current_tube = tube_name
     bad_client.put_job_into.side_effect = BeanstalkError(b'INTERNAL_ERROR')
-    p = ProductionPool([bad_client, beanstalk_client], shuffle=False, backoff_time=10)
+    p = ProductionPool([bad_client, beanstalk_client], initial_shuffle=False, backoff_time=10)
     # put a job; this should try the bad tube, then the good tube and succeed
     with caplog.at_level(logging.WARNING):
         p.put_job_into(tube_name, b'job 1')
