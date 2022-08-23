@@ -1,4 +1,3 @@
-import sys
 import os.path
 from setuptools import setup, find_packages
 
@@ -10,12 +9,7 @@ with open(os.path.join(project_root, 'requirements.txt'), 'r') as f:
         install_requires.append(line.rstrip())
 
 
-read_kwargs = {}
-
-if sys.version_info > (3, 0):
-    read_kwargs['encoding'] = 'utf-8'
-
-with open(os.path.join(project_root, 'README.md'), **read_kwargs) as f:
+with open(os.path.join(project_root, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 
@@ -31,7 +25,7 @@ setup(
     license="ISC",
     install_requires=install_requires,
     packages=find_packages(exclude=['tests', 'tests.*']),
-    python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4',
+    python_requires='>=3.6, <4',
     project_urls={
         'CI': 'https://travis-ci.com/EasyPost/pystalk',
     },
@@ -39,11 +33,11 @@ setup(
         "Development Status :: 4 - Beta",
         "Environment :: Console",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 2.7",
-        "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "Intended Audience :: System Administrators",
         "Operating System :: OS Independent",
         "Topic :: Database",

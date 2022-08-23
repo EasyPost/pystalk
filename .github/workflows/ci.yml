@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        pythonversion: ['3.6', '3.7', '3.8', '3.9', 'pypy-3.6']
+        pythonversion: ['3.6', '3.7', '3.8', '3.9', '3.10']
     steps:
       - uses: actions/checkout@v2
       - name: cache beanstalkd
@@ -44,3 +44,5 @@ jobs:
         run: pytest --cov=pystalk/ --cov-report=term-missing --cov-fail-under=60 tests/
         env:
           BEANSTALKD_PATH: ~/beanstalks/beanstalkd
+      - name: check mypy
+        run: mypy pystalk/ tests/
