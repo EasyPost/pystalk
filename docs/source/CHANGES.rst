@@ -3,8 +3,8 @@ pystalk ChangeLog
 #################
 
 =====
-NEXT
-======
+0.7.0
+=====
 * Drop support for Python < 3.6
 * Add `pystalk.pool.ProductionPool`
 * Add some `typing` annotations

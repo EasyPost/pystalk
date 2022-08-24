@@ -15,7 +15,7 @@ with open(os.path.join(project_root, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name="pystalk",
-    version="0.6.1",
+    version="0.7.0",
     author="EasyPost",
     author_email="oss@easypost.com",
     url="https://github.com/easypost/pystalk",
