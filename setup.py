@@ -1,15 +1,16 @@
 import os.path
-from setuptools import setup, find_packages
+
+from setuptools import find_packages, setup
 
 project_root = os.path.abspath(os.path.dirname(__file__))
 
 install_requires = []
-with open(os.path.join(project_root, 'requirements.txt'), 'r') as f:
+with open(os.path.join(project_root, "requirements.txt"), "r") as f:
     for line in f:
         install_requires.append(line.rstrip())
 
 
-with open(os.path.join(project_root, 'README.md'), encoding='utf-8') as f:
+with open(os.path.join(project_root, "README.md"), encoding="utf-8") as f:
     long_description = f.read()
 
 
@@ -21,14 +22,11 @@ setup(
     url="https://github.com/easypost/pystalk",
     description="Very simple beanstalkd client",
     long_description=long_description,
-    long_description_content_type='text/markdown',
+    long_description_content_type="text/markdown",
     license="ISC",
     install_requires=install_requires,
-    packages=find_packages(exclude=['tests', 'tests.*']),
-    python_requires='>=3.6, <4',
-    project_urls={
-        'CI': 'https://travis-ci.com/EasyPost/pystalk',
-    },
+    packages=find_packages(exclude=["tests", "tests.*"]),
+    python_requires=">=3.6, <4",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Environment :: Console",
@@ -42,5 +40,5 @@ setup(
         "Operating System :: OS Independent",
         "Topic :: Database",
         "License :: OSI Approved :: ISC License (ISCL)",
-    ]
+    ],
 )
