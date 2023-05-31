@@ -70,6 +70,7 @@ The following script will walk through all currently-READY jobs and then exit:
 from pystalk import BeanstalkClient
 
 client = BeanstalkClient('10.0.0.1', 11300)
+client.watch('some_tube')
 for job in client.reserve_iter():
     try:
         execute_job(job)
