@@ -30,6 +30,31 @@ class BeanstalkError(Exception):
     message: str = attr.ib(converter=lambda m: m.decode('ascii'))
 
 
+class BeanstalkConnectionError(BeanstalkError):
+    """Raised when the underlying socket connection to beanstalkd fails.
+
+    Distinguishes connection-level failures (e.g. connection refused, timeout,
+    DNS errors) from beanstalk protocol errors. Carries the ``host`` and
+    ``port`` that were being connected to, and preserves the original socket
+    error both on :attr:`original` and via ``__cause__`` (``raise ... from``).
+
+    This is a subclass of :class:`BeanstalkError` so that existing
+    ``except BeanstalkError`` callers continue to catch connection failures.
+    """
+
+    def __init__(self, host, port, original):
+        # BeanstalkError is an attr.s(frozen=True) class whose generated
+        # __init__ expects a bytes ``message`` (it calls .decode('ascii')).
+        # We bypass it entirely: set our fields via object.__setattr__ (the
+        # class is frozen) and initialize the Exception base with a plain str.
+        object.__setattr__(self, 'host', host)
+        object.__setattr__(self, 'port', port)
+        object.__setattr__(self, 'original', original)
+        msg = 'Failed to connect to beanstalkd at {0}:{1}: {2}'.format(host, port, original)
+        object.__setattr__(self, 'message', msg)
+        Exception.__init__(self, msg)
+
+
 def yaml_load(fo):
     # yaml.safe_load will never use the C loader; we have to detect it ourselves
     if hasattr(yaml, 'CSafeLoader'):
@@ -135,7 +160,14 @@ class BeanstalkClient(object):
     @property
     def _socket(self):
         if self.socket is None:
-            self.socket = socket.create_connection((self.host, self.port), timeout=self.socket_timeout)
+            try:
+                self.socket = socket.create_connection(
+                    (self.host, self.port), timeout=self.socket_timeout
+                )
+            except OSError as e:
+                # OSError covers ConnectionRefusedError, socket.timeout,
+                # socket.error, and socket.gaierror in Python 3.
+                raise BeanstalkConnectionError(self.host, self.port, e) from e
             self._re_establish_use_watch()
         return self.socket
 
