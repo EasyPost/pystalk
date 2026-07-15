@@ -29,6 +29,9 @@ Members
 .. autoclass:: pystalk.BeanstalkError
    :members:
 
+.. autoclass:: pystalk.BeanstalkConnectionError
+   :members:
+
 .. autoclass:: pystalk.client.Job
    :members:
 
