@@ -24,11 +24,17 @@ class Job(object):
     job_data = attr.ib()
 
 
-@attr.s(frozen=True, hash=True, eq=True)
+@attr.s(frozen=True, hash=True, eq=True, init=False)
 class BeanstalkError(Exception):
     """Common error raised when something goes wrong with beanstalk"""
 
-    message: str = attr.ib(converter=lambda m: m.decode('ascii'))
+    message: str = attr.ib()
+
+    def __init__(self, message: Union[str, bytes]):
+        if isinstance(message, bytes):
+            message = message.decode('ascii')
+        object.__setattr__(self, 'message', message)
+        Exception.__init__(self, message)
 
 
 class BeanstalkConnectionError(BeanstalkError):
@@ -52,9 +58,8 @@ class BeanstalkConnectionError(BeanstalkError):
         self.host = host
         self.port = port
         self.err = err
-        msg = 'Failed to connect to beanstalkd at {0}:{1}: {2}'.format(host, port, err)
-        self.message = msg
-        Exception.__init__(self, msg)
+        msg = f'Failed to connect to beanstalkd at {host}:{port}: {err}'
+        super().__init__(msg)
 
 
 def yaml_load(fo):
