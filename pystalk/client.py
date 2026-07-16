@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+from functools import wraps
 import attr
 import socket
 import yaml
@@ -36,22 +37,23 @@ class BeanstalkConnectionError(BeanstalkError):
     Distinguishes connection-level failures (e.g. connection refused, timeout,
     DNS errors) from beanstalk protocol errors. Carries the ``host`` and
     ``port`` that were being connected to, and preserves the original socket
-    error both on :attr:`original` and via ``__cause__`` (``raise ... from``).
+    error both on :attr:`err` and via ``__cause__`` (``raise ... from``).
 
     This is a subclass of :class:`BeanstalkError` so that existing
     ``except BeanstalkError`` callers continue to catch connection failures.
     """
 
-    def __init__(self, host, port, original):
-        # BeanstalkError is an attr.s(frozen=True) class whose generated
-        # __init__ expects a bytes ``message`` (it calls .decode('ascii')).
-        # We bypass it entirely: set our fields via object.__setattr__ (the
-        # class is frozen) and initialize the Exception base with a plain str.
-        object.__setattr__(self, 'host', host)
-        object.__setattr__(self, 'port', port)
-        object.__setattr__(self, 'original', original)
-        msg = 'Failed to connect to beanstalkd at {0}:{1}: {2}'.format(host, port, original)
-        object.__setattr__(self, 'message', msg)
+    # BeanstalkError is an attr.s(frozen=True) class, and frozen __setattr__
+    # is inherited here too. Un-freeze this subclass so we can use plain
+    # attribute assignment below instead of object.__setattr__.
+    __setattr__ = object.__setattr__
+
+    def __init__(self, host, port, err):
+        self.host = host
+        self.port = port
+        self.err = err
+        msg = 'Failed to connect to beanstalkd at {0}:{1}: {2}'.format(host, port, err)
+        self.message = msg
         Exception.__init__(self, msg)
 
 
@@ -61,6 +63,20 @@ def yaml_load(fo):
         return yaml.load(fo, Loader=yaml.CSafeLoader)
     else:
         return yaml.safe_load(fo)
+
+
+def catch_and_raise(*errors, raise_as=BeanstalkConnectionError):
+    """Catches specified errors on an instance method and re-raises
+    as ``raise_as(self.host, self.port, err)``, preserving the chain."""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            try:
+                return func(self, *args, **kwargs)
+            except errors as e:
+                raise raise_as(self.host, self.port, e) from e
+        return wrapper
+    return decorator
 
 
 @attr.s(frozen=True)
@@ -157,18 +173,17 @@ class BeanstalkClient(object):
             repr(self), self._watchlist, self.current_tube  # pragma: no cover
         )  # pragma: no cover
 
+    @catch_and_raise(ConnectionRefusedError, socket.timeout, socket.error, socket.gaierror)
+    def _connect(self):
+        self.socket = socket.create_connection(
+            (self.host, self.port), timeout=self.socket_timeout
+        )
+        self._re_establish_use_watch()
+
     @property
     def _socket(self):
         if self.socket is None:
-            try:
-                self.socket = socket.create_connection(
-                    (self.host, self.port), timeout=self.socket_timeout
-                )
-            except OSError as e:
-                # OSError covers ConnectionRefusedError, socket.timeout,
-                # socket.error, and socket.gaierror in Python 3.
-                raise BeanstalkConnectionError(self.host, self.port, e) from e
-            self._re_establish_use_watch()
+            self._connect()
         return self.socket
 
     def _re_establish_use_watch(self):
