@@ -24,17 +24,16 @@ class Job(object):
     job_data = attr.ib()
 
 
-@attr.s(frozen=True, hash=True, eq=True, init=False)
+@attr.s(hash=True, eq=True, init=False)
 class BeanstalkError(Exception):
-    """Common error raised when something goes wrong with beanstalk"""
 
     message: str = attr.ib()
 
     def __init__(self, message: Union[str, bytes]):
         if isinstance(message, bytes):
             message = message.decode('ascii')
-        object.__setattr__(self, 'message', message)
-        Exception.__init__(self, message)
+        self.message = message
+        super().__init__(message)
 
 
 class BeanstalkConnectionError(BeanstalkError):
@@ -49,11 +48,7 @@ class BeanstalkConnectionError(BeanstalkError):
     ``except BeanstalkError`` callers continue to catch connection failures.
     """
 
-    # BeanstalkError is an attr.s(frozen=True) class, and frozen __setattr__
-    # is inherited here too. Un-freeze this subclass so we can use plain
-    # attribute assignment below instead of object.__setattr__.
-    __setattr__ = object.__setattr__
-
+    
     def __init__(self, host, port, err):
         self.host = host
         self.port = port
@@ -79,7 +74,7 @@ def catch_and_raise(*errors, raise_as=BeanstalkConnectionError):
             try:
                 return func(self, *args, **kwargs)
             except errors as e:
-                raise raise_as(self.host, self.port, e) from e
+                raise raise_as(self.host, self.port, e)
         return wrapper
     return decorator
 
@@ -178,17 +173,14 @@ class BeanstalkClient(object):
             repr(self), self._watchlist, self.current_tube  # pragma: no cover
         )  # pragma: no cover
 
-    @catch_and_raise(ConnectionRefusedError, socket.timeout, socket.error, socket.gaierror)
-    def _connect(self):
-        self.socket = socket.create_connection(
-            (self.host, self.port), timeout=self.socket_timeout
-        )
-        self._re_establish_use_watch()
-
     @property
+    @catch_and_raise(ConnectionRefusedError, socket.timeout, socket.error, socket.gaierror)
     def _socket(self):
         if self.socket is None:
-            self._connect()
+            self.socket = socket.create_connection(
+                (self.host, self.port), timeout=self.socket_timeout
+            )
+            self._re_establish_use_watch()
         return self.socket
 
     def _re_establish_use_watch(self):
