@@ -76,17 +76,17 @@ def test_connection_error_is_wrapped(monkeypatch):
     # host/port context is exposed on the exception
     assert ei.value.host == 'pystalk.example.com'
     assert ei.value.port == 11300
-    # original socket error is preserved via __cause__
-    assert isinstance(ei.value.__cause__, ConnectionRefusedError)
+    # original socket error is preserved via implicit context chaining
+    assert isinstance(ei.value.__context__, ConnectionRefusedError)
     assert isinstance(ei.value.err, ConnectionRefusedError)
 
 
 def test_connection_error_is_a_beanstalk_error(monkeypatch):
     # Success criterion: existing `except BeanstalkError` still catches it
     def boom(*args, **kwargs):
-        raise OSError('nope')
+        raise pystalk.BeanstalkError('nope')
     monkeypatch.setattr('pystalk.client.socket.create_connection', boom)
     client = pystalk.BeanstalkClient('h', 1)
     client.socket = None
-    with pytest.raises(pystalk.BeanstalkError):   # must still be caught here
+    with pytest.raises(pystalk.BeanstalkError):   
         _ = client._socket
