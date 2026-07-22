@@ -1,7 +1,14 @@
 #################
 pystalk ChangeLog
 #################
-
+=====
+0.8.0
+=====
+* Add `pystalk.BeanstalkConnectionError`, a subclass of `BeanstalkError` raised when the
+  underlying socket connection to beanstalkd fails (connection refused, timeout, DNS errors,
+  etc.), distinguishing connection-level failures from beanstalk protocol errors while
+  remaining catchable via `except BeanstalkError`
+* Preserve the original socket error via `__cause__` (`raise ... from`) on connection failures
 =====
 0.7.0
 =====
