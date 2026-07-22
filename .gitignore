@@ -1,6 +1,7 @@
 *.egg-info
 .cache/
 venv/
+.venv/
 .tox
 test-*.xml
 .coverage
