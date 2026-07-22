@@ -50,7 +50,6 @@ class BeanstalkConnectionError(BeanstalkError):
     ``except BeanstalkError`` callers continue to catch connection failures.
     """
 
-    
     def __init__(self, host, port, err):
         self.host = host
         self.port = port
@@ -181,12 +180,15 @@ class BeanstalkClient(object):
             repr(self), self._watchlist, self.current_tube  # pragma: no cover
         )  # pragma: no cover
 
-    @property
     @catch_and_raise(ConnectionRefusedError, socket.timeout, socket.error, socket.gaierror)
+    def _connect(self):
+        self.socket = socket.create_connection((self.host, self.port), timeout=self.socket_timeout)
+        self._re_establish_use_watch()
+
+    @property
     def _socket(self):
         if self.socket is None:
-            self.socket = socket.create_connection((self.host, self.port), timeout=self.socket_timeout)
-            self._re_establish_use_watch()
+            self._connect()
         return self.socket
 
     def _re_establish_use_watch(self):

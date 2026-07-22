@@ -88,5 +88,5 @@ def test_connection_error_is_a_beanstalk_error(monkeypatch):
     monkeypatch.setattr('pystalk.client.socket.create_connection', boom)
     client = pystalk.BeanstalkClient('h', 1)
     client.socket = None
-    with pytest.raises(pystalk.BeanstalkError):   
+    with pytest.raises(pystalk.BeanstalkError):
         _ = client._socket
