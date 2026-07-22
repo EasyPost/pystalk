@@ -135,10 +135,9 @@ Pretty straightforward. Develop in branches, send PRs, land on master. All tests
 ### Releasing a new version
 
    1. Land all requisite changes
-   1. Bump the version in `setup.py` and `pystalk/__init__.py` to the stable version (e.g., `0.2`)
+   1. Bump the version in `setup.py` and `pystalk/__init__.py` to the stable version (e.g., `0.9.0`)
    1. Update [`CHANGES.rst`](docs/source/CHANGES.rst) with the changes and the new version number
    1. Update [`conf.py`](docs/source/conf.py) with the new version number
-   1. Commit
-   1. Tag the version (e.g., `git tag -s pystalk-0.2`)
-   1. Push up to Github
-   1. Upload to PyPI with `python setup.py sdist upload`
+   1. Commit and push up to Github
+   1. Draft a [new GitHub Release](https://github.com/EasyPost/pystalk/releases/new), targeting a new tag matching the version (e.g., `pystalk-0.9.0`)
+   1. Publishing the release triggers the `release` GitHub Actions workflow, which builds the sdist/wheel and publishes them to PyPI automatically
