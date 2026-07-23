@@ -1,8 +1,9 @@
 # Install the project and build its dependencies.
 install:
-    uv venv
-    uv pip install --system -e . -r requirements-tests.txt
+    python -m pip install --upgrade pip
+    python -m pip install -e . -r requirements-tests.txt
 
 # build sdist and wheel into dist/
 build:
-    uv build
+    python -m pip install build
+    python -m build
