@@ -1,4 +1,4 @@
- # Install the project and build its dependencies.
+# Install the project and build its dependencies.
 install:
     python -m venv venv
     venv/bin/pip install -e '.[dev]'

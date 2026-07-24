@@ -31,12 +31,12 @@ classifiers = [
 ]
 [project.optional-dependencies]
 dev = [
+    "flake8",
+    "mock",
+    "mypy==0.971",
     "pytest==7.*",
     "pytest-cov==3.*",
     "pytest-mock==3.*",
-    "mock",
-    "flake8",
-    "mypy==0.971",
     "types-PyYAML",
     "types-six",
 ]
@@ -49,8 +49,8 @@ docs = [
 [project.urls]
 Source = "https://github.com/easypost/pystalk"
 
+[tool.setuptools.dynamic]
 version = { attr = "pystalk.__version__" }
-dependencies = { file = ["requirements.txt"] }
 
-[tool.setuptools.dynamic.optional-dependencies]
-dev = { file = ["requirements-tests.txt"] }
+[tool.setuptools.packages.find]
+exclude = ["tests", "tests.*"]
