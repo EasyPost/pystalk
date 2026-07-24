@@ -1,9 +1,9 @@
-# Install the project and build its dependencies.
+ # Install the project and build its dependencies.
 install:
-    python -m pip install --upgrade pip
-    python -m pip install -e . -r requirements-tests.txt
+    python -m venv venv
+    venv/bin/pip install -e '.[dev]'
 
 # build sdist and wheel into dist/
 build:
-    python -m pip install build
-    python -m build
+    venv/bin/pip install build
+    venv/bin/python -m build
