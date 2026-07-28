@@ -43,7 +43,7 @@ class BeanstalkConnectionError(BeanstalkError):
 
     Distinguishes connection-level failures (e.g. connection refused, timeout,
     DNS errors) from beanstalk protocol errors. Carries the ``host`` and
-    ``port`` that were being connected to, and preserves the original socket
+    `port` that were being connected to, and preserves the original socket
     error both on :attr:`err` and via implicit exception chaining (``__context__``).
 
     This is a subclass of :class:`BeanstalkError` so that existing
