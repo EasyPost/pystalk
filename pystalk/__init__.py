@@ -6,4 +6,9 @@ __version__ = '0.8.0'
 __author__ = 'EasyPost <oss@easypost.com>'
 
 
-__all__ = ['BeanstalkClient', 'BeanstalkError', 'BeanstalkConnectionError', 'ProductionPool']
+__all__ = [
+    'BeanstalkClient',
+    'BeanstalkConnectionError',
+    'BeanstalkError',
+    'ProductionPool',
+]
