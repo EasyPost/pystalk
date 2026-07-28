@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61", "wheel"]
+requires = ["setuptools>=61", "wheel", "attrs>=19.2", "PyYAML>=3.0", "six"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -33,7 +33,7 @@ classifiers = [
 dev = [
     "flake8",
     "mock",
-    "mypy==0.971",
+    "mypy>=1.19",
     "pytest==7.*",
     "pytest-cov==3.*",
     "pytest-mock==3.*",
