@@ -1,6 +1,7 @@
 import pystalk
 
 import pytest
+import socket
 
 
 class MockBeanstalkServerSocket(object):
@@ -58,3 +59,41 @@ def test_from_uri(uri, expected_host, expected_port):
 def test_invalid_uri_fails(uri):
     with pytest.raises(ValueError):
         pystalk.BeanstalkClient.from_uri(uri)
+
+
+@pytest.mark.parametrize('raised_error', [
+    ConnectionRefusedError('refused'),
+    socket.timeout('timed out'),
+    socket.error('socket error'),
+    socket.gaierror(-2, 'Name or service not known'),
+])
+def test_connection_error_is_wrapped(monkeypatch, raised_error):
+    def boom(*args, **kwargs):
+        raise raised_error
+    monkeypatch.setattr('pystalk.client.socket.create_connection', boom)
+
+    client = pystalk.BeanstalkClient('pystalk.example.com', 11300)
+    # ensure fresh (no injected mock socket)
+    client.socket = None
+
+    with pytest.raises(pystalk.BeanstalkConnectionError) as ei:
+        _ = client._socket
+    assert 'pystalk.example.com' in str(ei.value)
+    assert '11300' in str(ei.value)
+    # host/port context is exposed on the exception
+    assert ei.value.host == 'pystalk.example.com'
+    assert ei.value.port == 11300
+    # original socket error is preserved via implicit context chaining
+    assert ei.value.__context__ is raised_error
+    assert ei.value.err is raised_error
+
+
+def test_connection_error_is_a_beanstalk_error(monkeypatch):
+    # Success criterion: existing `except BeanstalkError` still catches it
+    def boom(*args, **kwargs):
+        raise pystalk.BeanstalkError('nope')
+    monkeypatch.setattr('pystalk.client.socket.create_connection', boom)
+    client = pystalk.BeanstalkClient('h', 1)
+    client.socket = None
+    with pytest.raises(pystalk.BeanstalkError):
+        _ = client._socket

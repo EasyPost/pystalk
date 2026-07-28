@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+from functools import wraps
 import attr
 import socket
 import yaml
@@ -10,7 +11,8 @@ import six
 
 @attr.s(frozen=True)
 class Job(object):
-    """Structure holding a job returned from Beanstalk
+    """
+    Structure holding a job returned from Beanstalk
 
     :ivar job_id: Opaque identifier for the job (to be passed to :func:`BeanstalkClient.release_job()` or
         :func:`BeanstalkClient.stats_job()`).
@@ -23,11 +25,36 @@ class Job(object):
     job_data = attr.ib()
 
 
-@attr.s(frozen=True, hash=True, eq=True)
+@attr.s(hash=True, eq=True, init=False)
 class BeanstalkError(Exception):
-    """Common error raised when something goes wrong with beanstalk"""
 
-    message: str = attr.ib(converter=lambda m: m.decode('ascii'))
+    message: str = attr.ib()
+
+    def __init__(self, message: Union[str, bytes]):
+        if isinstance(message, bytes):
+            message = message.decode('ascii')
+        self.message = message
+        super(BeanstalkError, self).__init__(message)
+
+
+class BeanstalkConnectionError(BeanstalkError):
+    """
+    Raised when the underlying socket connection to beanstalkd fails.
+
+    Distinguishes connection-level failures (e.g. connection refused, timeout,
+    DNS errors) from beanstalk protocol errors. Carries the ``host`` and
+    `port` that were being connected to, and preserves the original socket
+    error both on :attr:`err` and via implicit exception chaining (``__context__``).
+
+    This is a subclass of :class:`BeanstalkError` so that existing
+    ``except BeanstalkError`` callers continue to catch connection failures.
+    """
+
+    def __init__(self, host, port, err):
+        self.host = host
+        self.port = port
+        self.err = err
+        super(BeanstalkConnectionError, self).__init__(f"Failed to connect to beanstalkd at {host}:{port}: {err}")
 
 
 def yaml_load(fo):
@@ -38,6 +65,22 @@ def yaml_load(fo):
         return yaml.safe_load(fo)
 
 
+def catch_and_raise(*errors, raise_as=BeanstalkConnectionError):
+    """
+    Catches specified errors on an instance method and re-raises
+    as ``raise_as(self.host, self.port, err)``, preserving the chain.
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            try:
+                return func(self, *args, **kwargs)
+            except errors as e:
+                raise raise_as(self.host, self.port, e)
+        return wrapper
+    return decorator
+
+
 @attr.s(frozen=True)
 class BeanstalkInsertingProxy(object):
     """Proxy object yielded by :func:`BeanstalkClient.using()`"""
@@ -46,7 +89,8 @@ class BeanstalkInsertingProxy(object):
     tube: str = attr.ib()
 
     def put_job(self, data: Union[str, bytes], pri: int = 65536, delay: int = 0, ttr: int = 120):
-        """Method to insert a job into the tube selected with :func:`BeanstalkClient.using`.
+        """
+        Method to insert a job into the tube selected with :func:`BeanstalkClient.using`.
 
         :param data: Job body
         :type data: Text (either str which will be encoded as utf-8, or bytes which are already utf-8
@@ -64,7 +108,8 @@ class BeanstalkInsertingProxy(object):
 
 
 class BeanstalkClient(object):
-    """Simple wrapper around the Beanstalk API.
+    """
+    Simple wrapper around the Beanstalk API.
 
     :param host: Hostname or IP address to connect to
     :type host: str
@@ -85,7 +130,9 @@ class BeanstalkClient(object):
     """
     def __init__(self, host: str, port: int = 11300, socket_timeout: Optional[float] = None,
                  auto_decode: bool = False):
-        """Construct a synchronous Beanstalk Client. Does not connect!"""
+        """
+        Construct a synchronous Beanstalk Client. Does not connect!
+        """
         self.host = host
         self.port = port
         self.socket_timeout = socket_timeout
@@ -96,7 +143,8 @@ class BeanstalkClient(object):
 
     @classmethod
     def from_uri(cls, uri, socket_timeout=None, auto_decode=False):
-        """Construct a synchronous Beanstalk Client from a URI.
+        """
+        Construct a synchronous Beanstalk Client from a URI.
 
         The URI may be of the form beanstalk://host:port or beanstalkd://host:port
 
@@ -132,15 +180,20 @@ class BeanstalkClient(object):
             repr(self), self._watchlist, self.current_tube  # pragma: no cover
         )  # pragma: no cover
 
+    @catch_and_raise(ConnectionRefusedError, socket.timeout, socket.error, socket.gaierror)
+    def _connect(self):
+        self.socket = socket.create_connection((self.host, self.port), timeout=self.socket_timeout)
+        self._re_establish_use_watch()
+
     @property
     def _socket(self):
         if self.socket is None:
-            self.socket = socket.create_connection((self.host, self.port), timeout=self.socket_timeout)
-            self._re_establish_use_watch()
+            self._connect()
         return self.socket
 
     def _re_establish_use_watch(self):
-        """Call after a close/re-connect.
+        """
+        Call after a close/re-connect.
 
         Automatically re-establishes the USE and WATCH configs previously setup.
         """
@@ -150,7 +203,8 @@ class BeanstalkClient(object):
             self.watchlist = self.desired_watchlist
 
     def close(self):
-        """Close any open connection to the Beanstalk server.
+        """
+        Close any open connection to the Beanstalk server.
 
         This object is still safe to use after calling :func:`close()` ; it will automatically reconnect
         and re-establish any open watches / uses.
@@ -246,7 +300,8 @@ class BeanstalkClient(object):
             return sock.sendall(message.encode('utf-8'))
 
     def list_tubes(self):
-        """Return a list of tubes that this beanstalk instance knows about
+        """
+        Return a list of tubes that this beanstalk instance knows about
 
         :rtype: list of tubes
         """
@@ -257,7 +312,8 @@ class BeanstalkClient(object):
             return tubes
 
     def stats(self):
-        """Return a dictionary with a bunch of instance-wide statistics
+        """
+        Return a dictionary with a bunch of instance-wide statistics
 
         :rtype: dict
         """
@@ -268,7 +324,8 @@ class BeanstalkClient(object):
             return stats
 
     def put_job(self, data: Union[str, bytes], pri: int = 65536, delay: int = 0, ttr: int = 120):
-        """Insert a new job into whatever queue is currently USEd
+        """
+        Insert a new job into whatever queue is currently USEd
 
         :param data: Job body
         :type data: Text (either str which will be encoded as utf-8, or bytes which are already utf-8
@@ -474,7 +531,9 @@ class BeanstalkClient(object):
         return self._common_iter(self.peek_buried, 'NOT_FOUND')
 
     def delete_job(self, job_id):
-        """Delete the given job id. The job must have been previously reserved by this connection"""
+        """
+        Delete the given job id. The job must have been previously reserved by this connection
+        """
         if hasattr(job_id, 'job_id'):
             job_id = job_id.job_id
         with self._sock_ctx() as socket:
@@ -482,7 +541,8 @@ class BeanstalkClient(object):
             self._receive_word(socket, b'DELETED')
 
     def bury_job(self, job_id, pri=65536):
-        """Mark the given job_id as buried. The job must have been previously reserved by this connection
+        """
+        Mark the given job_id as buried. The job must have been previously reserved by this connection
 
         :param job_id: Job to bury
         :param pri: Priority for the newly-buried job. If not passed, will keep its current priority
@@ -495,7 +555,8 @@ class BeanstalkClient(object):
             return self._receive_word(socket, b'BURIED')
 
     def release_job(self, job_id, pri=65536, delay=0):
-        """Put a job back on the queue to be processed (indicating that you've aborted it)
+        """
+        Put a job back on the queue to be processed (indicating that you've aborted it)
 
         You can only release a job which you have reserved using :func:`reserve_job()` or :func:`reserve_iter()`.
 
@@ -512,7 +573,8 @@ class BeanstalkClient(object):
             return self._receive_word(socket, b'RELEASED', b'BURIED')
 
     def kick_job(self, job_id):
-        """Kick the given job id. The job must either be in the DELAYED or BURIED state and will be immediately moved to
+        """
+        Kick the given job id. The job must either be in the DELAYED or BURIED state and will be immediately moved to
         the READY state."""
         if hasattr(job_id, 'job_id'):
             job_id = job_id.job_id
@@ -521,7 +583,8 @@ class BeanstalkClient(object):
             self._receive_word(socket, b'KICKED')
 
     def use(self, tube):
-        """Start producing jobs into the given tube.
+        """
+        Start producing jobs into the given tube.
 
         :param tube: Name of the tube to USE
 
@@ -536,7 +599,8 @@ class BeanstalkClient(object):
 
     @contextmanager
     def using(self, tube):
-        """Context-manager to insert jobs into a specific tube
+        """
+        Context-manager to insert jobs into a specific tube
 
         :param tube: Tube to insert to
 
@@ -561,7 +625,8 @@ class BeanstalkClient(object):
             self.use(current_tube)
 
     def kick_jobs(self, num_jobs):
-        """Kick some number of jobs from the buried queue onto the ready queue.
+        """
+        Kick some number of jobs from the buried queue onto the ready queue.
 
         :param num_jobs: Number of jobs to kick
         :type num_jobs: int
@@ -572,7 +637,8 @@ class BeanstalkClient(object):
             return self._receive_id(socket)
 
     def pause_tube(self, tube, delay=3600):
-        """Pause a tube for some number of seconds, preventing it from issuing jobs.
+        """
+        Pause a tube for some number of seconds, preventing it from issuing jobs.
 
         :param delay: Time to pause for, in seconds
         :type delay: int
@@ -589,7 +655,8 @@ class BeanstalkClient(object):
             return self._receive_word(socket, b'PAUSED')
 
     def unpause_tube(self, tube):
-        """Unpause a tube which was previously paused with :func:`pause_tube()`.
+        """
+        Unpause a tube which was previously paused with :func:`pause_tube()`.
 
         .. seealso::
 
