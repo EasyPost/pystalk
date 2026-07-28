@@ -9,7 +9,7 @@ pystalk ChangeLog
   :py:class:`pystalk.client.BeanstalkError` raised when the underlying socket
   connection to beanstalkd fails (connection refused, timeout, or DNS errors),
   distinguishing connection-level failures from beanstalk protocol errors.
-  Carries the ``host`` and ``port`` that were being connected to, and preserves
+  Carries the `host` and `port` that were being connected to, and preserves
   the original socket error on :attr:`err`.
 
 =====
