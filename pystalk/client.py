@@ -1,12 +1,11 @@
 from contextlib import contextmanager
 from functools import wraps
+from urllib.parse import urlparse
 import attr
 import socket
 import yaml
 import re
 from typing import Optional, Union
-
-import six
 
 
 @attr.s(frozen=True)
@@ -150,7 +149,7 @@ class BeanstalkClient(object):
 
         IPv6 literals must be wrapped in brackets as per RFC 2732.
         """
-        parts = six.moves.urllib.parse.urlparse(uri)
+        parts = urlparse(uri)
         if parts.scheme.lower() not in ('beanstalk', 'beanstalkd'):
             raise ValueError('Invalid scheme %s' % parts.scheme)
         ipv6_md = re.match(r'^\[([0-9a-fA-F:]+)\](:[0-9]+)?$', parts.netloc)

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61", "wheel", "attrs>=19.2", "PyYAML>=3.0", "six"]
+requires = ["setuptools>=61", "wheel", "attrs>=19.2", "PyYAML>=3.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -13,7 +13,6 @@ authors = [{ name = "EasyPost", email = "oss@easypost.com" }]
 dependencies = [
     "PyYAML>=3.0",
     "attrs>=19.2",
-    "six",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -38,7 +37,6 @@ dev = [
     "pytest-cov==3.*",
     "pytest-mock==3.*",
     "types-PyYAML",
-    "types-six",
 ]
 docs = [
     "PyYAML>=3.0",

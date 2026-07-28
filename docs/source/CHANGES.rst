@@ -13,6 +13,7 @@ pystalk ChangeLog
   the original socket error on :attr:`err`.
 * Add :py:meth:`pystalk.client.BeanstalkClient.ping` to test connectivity
   without changing the client's active connection, current tube, or watchlist.
+* Remove the legacy ``six`` compatibility dependency.
 
 =====
 0.7.0
