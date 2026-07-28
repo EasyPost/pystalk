@@ -7,7 +7,7 @@ import logging
 
 import attr
 
-from .client import BeanstalkClient, BeanstalkError
+from .client import BeanstalkClient, BeanstalkConnectionError, BeanstalkError
 
 
 RETRIABLE_ERRORS = ('INTERNAL_ERROR', 'OUT_OF_MEMORY')
@@ -32,10 +32,12 @@ class ClientRecord(object):
             now = _get_time()
         if self.last_failed_at is None:
             return True
-        return self.last_failed_at < (now - backoff_time)
+        return now >= self.last_failed_at + backoff_time
 
     def mark_failed(self, now=None):
-        self.last_failed_at = _get_time()
+        if now is None:
+            now = _get_time()
+        self.last_failed_at = now
 
 
 class ProductionPool(object):
@@ -95,40 +97,55 @@ class ProductionPool(object):
         """
         self.current_tube = tube
 
-    def _get_client(self):
-        # attempt to find the next live client and activate it
+    def _get_client(self, attempted_client_ids=None):
+        # Attempt to find the next live client.
+        if attempted_client_ids is None:
+            attempted_client_ids = set()
+        now = _get_time()
         for _ in range(len(self._clients)):
-            if self._clients[0].is_ok(self.backoff_time):
-                client = self._clients[0]
-                if client.client.current_tube != self.current_tube:
-                    client.client.use(self.current_tube)
-                return client
-            else:
-                self._clients.rotate()
+            client_record = self._clients[0]
+            if id(client_record) not in attempted_client_ids and client_record.is_ok(self.backoff_time, now=now):
+                return client_record
+            self._clients.rotate(-1)
         self.log.error('All clients are failed!')
         raise NoMoreClients()
 
-    def _mark_client_failed(self):
-        self._clients[0].mark_failed()
-        self._clients.rotate()
+    def _mark_client_failed(self, client_record, close_connection=False):
+        if close_connection:
+            try:
+                client_record.client.close()
+            except socket.error as e:
+                self.log.warning('error closing failed client %r: %r', client_record, e)
+        client_record.mark_failed()
+        if self._clients[0] is client_record:
+            self._clients.rotate(-1)
 
     def _attempt_on_all_clients(self, thunk):
-        while True:
+        attempted_client_ids = set()
+        while len(attempted_client_ids) < len(self._clients):
+            client_record = self._get_client(attempted_client_ids)
+            attempted_client_ids.add(id(client_record))
             try:
-                client_record = self._get_client()
+                if self.current_tube is not None and client_record.client.current_tube != self.current_tube:
+                    client_record.client.use(self.current_tube)
                 rv = thunk(client_record.client)
                 if self.round_robin:
-                    self._clients.rotate()
+                    self._clients.rotate(-1)
                 return rv
+            except BeanstalkConnectionError as e:
+                self.log.warning('error on server %r: %r', client_record, e)
+                self._mark_client_failed(client_record, close_connection=True)
             except BeanstalkError as e:
                 if e.message in RETRIABLE_ERRORS:
                     self.log.warning('error on server %r: %r', client_record, e)
-                    self._mark_client_failed()
+                    self._mark_client_failed(client_record)
                 else:
                     raise
-            except (socket.error) as e:
+            except socket.error as e:
                 self.log.warning('error on server %r: %r', client_record, e)
-                self._mark_client_failed()
+                self._mark_client_failed(client_record, close_connection=True)
+        self.log.error('All clients failed during request!')
+        raise NoMoreClients()
 
     def put_job(self, data: Union[str, bytes], pri: int = 65536, delay: int = 0, ttr: int = 120):
         """Insert a new job into whatever queue is currently USEd

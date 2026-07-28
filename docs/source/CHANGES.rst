@@ -14,6 +14,9 @@ pystalk ChangeLog
 * Add :py:meth:`pystalk.client.BeanstalkClient.ping` to test connectivity
   without changing the client's active connection, current tube, or watchlist.
 * Remove the legacy ``six`` compatibility dependency.
+* Fix :py:class:`pystalk.pool.ProductionPool` failover and backoff behavior so
+  connection failures try each available server once before raising
+  :py:class:`pystalk.pool.NoMoreClients`.
 
 =====
 0.7.0
