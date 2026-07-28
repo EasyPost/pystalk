@@ -16,10 +16,10 @@ jobs:
       matrix:
         pythonversion: ['3.6', '3.7', '3.8', '3.9', '3.10']
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
       - name: cache beanstalkd
         id: cache-beanstalkd
-        uses: actions/cache@v2
+        uses: actions/cache@v6
         with:
           path: ~/beanstalks
           key: ${{ runner.os }}-${{ env.BEANSTALK_VERSION }}
@@ -33,7 +33,7 @@ jobs:
           make
           mv beanstalkd ~/beanstalks/
       - name: set up python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.pythonversion }}
       - uses: extractions/setup-just@v3
