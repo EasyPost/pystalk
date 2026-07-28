@@ -33,7 +33,7 @@ classifiers = [
 dev = [
     "flake8",
     "mock",
-    "mypy==0.971",
+    "mypy>=1.19",
     "pytest==7.*",
     "pytest-cov==3.*",
     "pytest-mock==3.*",
