@@ -1,6 +1,7 @@
 import pystalk
 
 import pytest
+import socket
 
 
 class MockBeanstalkServerSocket(object):
@@ -60,9 +61,15 @@ def test_invalid_uri_fails(uri):
         pystalk.BeanstalkClient.from_uri(uri)
 
 
-def test_connection_error_is_wrapped(monkeypatch):
+@pytest.mark.parametrize('raised_error', [
+    ConnectionRefusedError('refused'),
+    socket.timeout('timed out'),
+    socket.error('socket error'),
+    socket.gaierror(-2, 'Name or service not known'),
+])
+def test_connection_error_is_wrapped(monkeypatch, raised_error):
     def boom(*args, **kwargs):
-        raise ConnectionRefusedError('refused')
+        raise raised_error
     monkeypatch.setattr('pystalk.client.socket.create_connection', boom)
 
     client = pystalk.BeanstalkClient('pystalk.example.com', 11300)
@@ -77,8 +84,8 @@ def test_connection_error_is_wrapped(monkeypatch):
     assert ei.value.host == 'pystalk.example.com'
     assert ei.value.port == 11300
     # original socket error is preserved via implicit context chaining
-    assert isinstance(ei.value.__context__, ConnectionRefusedError)
-    assert isinstance(ei.value.err, ConnectionRefusedError)
+    assert ei.value.__context__ is raised_error
+    assert ei.value.err is raised_error
 
 
 def test_connection_error_is_a_beanstalk_error(monkeypatch):
