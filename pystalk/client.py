@@ -181,6 +181,13 @@ class BeanstalkClient(object):
         )  # pragma: no cover
 
     @catch_and_raise(ConnectionRefusedError, socket.timeout, socket.error, socket.gaierror)
+    def ping(self) -> bool:
+        """Check whether a connection to the beanstalk server can be opened."""
+        connection = socket.create_connection((self.host, self.port), timeout=self.socket_timeout)
+        connection.close()
+        return True
+
+    @catch_and_raise(ConnectionRefusedError, socket.timeout, socket.error, socket.gaierror)
     def _connect(self):
         self.socket = socket.create_connection((self.host, self.port), timeout=self.socket_timeout)
         self._re_establish_use_watch()

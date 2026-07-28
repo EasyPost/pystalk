@@ -6,8 +6,12 @@ import socket
 
 class MockBeanstalkServerSocket(object):
     def __init__(self):
+        self.closed = False
         self.received = []
         self.responses = []
+
+    def close(self):
+        self.closed = True
 
     def sendall(self, bytez):
         if not isinstance(bytez, bytes):
@@ -59,6 +63,37 @@ def test_from_uri(uri, expected_host, expected_port):
 def test_invalid_uri_fails(uri):
     with pytest.raises(ValueError):
         pystalk.BeanstalkClient.from_uri(uri)
+
+
+def test_ping_connects_without_mutating_client_state(monkeypatch, client, server):
+    ping_socket = MockBeanstalkServerSocket()
+    monkeypatch.setattr('pystalk.client.socket.create_connection', lambda *args, **kwargs: ping_socket)
+    client.current_tube = 'jobs'
+    client._watchlist = {'jobs', 'urgent'}
+
+    assert client.ping() is True
+
+    assert ping_socket.closed is True
+    assert client.socket is server
+    assert client.current_tube == 'jobs'
+    assert client._watchlist == {'jobs', 'urgent'}
+
+
+def test_ping_raises_connection_error_for_unreachable_server(monkeypatch):
+    connection_error = ConnectionRefusedError('refused')
+
+    def refuse_connection(*args, **kwargs):
+        raise connection_error
+
+    monkeypatch.setattr('pystalk.client.socket.create_connection', refuse_connection)
+    client = pystalk.BeanstalkClient('unreachable.example.com', 11300)
+
+    with pytest.raises(pystalk.BeanstalkConnectionError) as exc_info:
+        client.ping()
+
+    assert exc_info.value.err is connection_error
+    assert client.current_tube == 'default'
+    assert client._watchlist == {'default'}
 
 
 @pytest.mark.parametrize('raised_error', [

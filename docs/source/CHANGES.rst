@@ -11,6 +11,8 @@ pystalk ChangeLog
   distinguishing connection-level failures from beanstalk protocol errors.
   Carries the `host` and `port` that were being connected to, and preserves
   the original socket error on :attr:`err`.
+* Add :py:meth:`pystalk.client.BeanstalkClient.ping` to test connectivity
+  without changing the client's active connection, current tube, or watchlist.
 
 =====
 0.7.0
