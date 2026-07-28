@@ -40,10 +40,10 @@ jobs:
       - name: install dependencies
         run: just install
       - name: lint with flake8
-        run: venv/bin/flake8 pystalk/ tests/
+        run: just lint
       - name: test with pytest
-        run: venv/bin/pytest --cov=pystalk/ --cov-report=term-missing --cov-fail-under=60 tests/
+        run: just test
         env:
           BEANSTALKD_PATH: ~/beanstalks/beanstalkd
       - name: check mypy
-        run: venv/bin/mypy pystalk/ tests/
+        run: just mypy
