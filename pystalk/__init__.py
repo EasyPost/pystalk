@@ -1,7 +1,7 @@
 from .client import BeanstalkClient, BeanstalkError, BeanstalkConnectionError
 from .pool import ProductionPool
 
-__version__ = '0.8.0'
+__version__ = '0.8.1'
 
 __author__ = 'EasyPost <oss@easypost.com>'
 

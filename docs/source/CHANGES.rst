@@ -3,6 +3,13 @@ pystalk ChangeLog
 #################
 
 =====
+0.8.1
+=====
+* Fix :py:class:`pystalk.pool.ProductionPool` failover and backoff behavior so
+  connection failures try each available server once before raising
+  :py:class:`pystalk.pool.NoMoreClients`.
+
+=====
 0.8.0
 =====
 * Add :py:class:`pystalk.client.BeanstalkConnectionError`, a subclass of
