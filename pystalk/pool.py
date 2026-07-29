@@ -70,7 +70,7 @@ class ProductionPool(object):
         self.log = logging.getLogger('pystalk.ProductionPool')
 
     @classmethod
-    def from_uris(cls, uris: List[str], socket_timeout: float = None, auto_decode: bool = False,
+    def from_uris(cls, uris: List[str], socket_timeout: Optional[float] = None, auto_decode: bool = False,
                   round_robin: bool = True, backoff_time: float = 10.0, initial_shuffle: bool = True):
         """Construct a pool from a list of URIs. See `pystalk.client.Client.from_uri` for more information.
 

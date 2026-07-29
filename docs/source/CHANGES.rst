@@ -3,6 +3,19 @@ pystalk ChangeLog
 #################
 
 =====
+0.8.0
+=====
+* Add :py:class:`pystalk.client.BeanstalkConnectionError`, a subclass of
+  :py:class:`pystalk.client.BeanstalkError` raised when the underlying socket
+  connection to beanstalkd fails (connection refused, timeout, or DNS errors),
+  distinguishing connection-level failures from beanstalk protocol errors.
+  Carries the `host` and `port` that were being connected to, and preserves
+  the original socket error on :attr:`err`.
+* Add :py:meth:`pystalk.client.BeanstalkClient.ping` to test connectivity
+  without changing the client's active connection, current tube, or watchlist.
+* Remove the legacy ``six`` compatibility dependency.
+
+=====
 0.7.0
 =====
 * Drop support for Python < 3.6
