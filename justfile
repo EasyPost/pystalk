@@ -19,3 +19,8 @@ test:
 # type check mypy
 mypy:
     venv/bin/mypy pystalk/ tests/
+
+# build docs
+docs:
+    venv/bin/pip install -e '.[docs]'
+    make -C docs html

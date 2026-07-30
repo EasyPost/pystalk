@@ -3,9 +3,15 @@
 
 # You can set these variables from the command line.
 SPHINXOPTS    =
-SPHINXBUILD   = sphinx-build
+PYTHON        = python3
+SPHINXBUILD   = $(PYTHON) -m sphinx
 PAPER         =
 BUILDDIR      = build
+
+ifeq ($(wildcard ../venv/bin/python),../venv/bin/python)
+PYTHON        = ../venv/bin/python
+SPHINXBUILD   = $(PYTHON) -m sphinx
+endif
 
 # Internal variables.
 PAPEROPT_a4     = -D latex_paper_size=a4
