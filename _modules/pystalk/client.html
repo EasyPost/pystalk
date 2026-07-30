@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>pystalk.client &#8212; pystalk  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../_static/classic.css?v=2bf1fcf8" />
+    
+    <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">pystalk  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">pystalk.client</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pystalk.client</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">contextlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">contextmanager</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">wraps</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">urllib.parse</span><span class="w"> </span><span class="kn">import</span> <span class="n">urlparse</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">attr</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">socket</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">yaml</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+
+
+<div class="viewcode-block" id="Job">
+<a class="viewcode-back" href="../../index.html#pystalk.Job">[docs]</a>
+<span class="nd">@attr</span><span class="o">.</span><span class="n">s</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Job</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Structure holding a job returned from Beanstalk</span>
+
+<span class="sd">    :ivar job_id: Opaque identifier for the job (to be passed to :func:`BeanstalkClient.release_job()` or</span>
+<span class="sd">        :func:`BeanstalkClient.stats_job()`).</span>
+
+<span class="sd">    :ivar job_data: Blob of the data. str if :attr:`BeanstalkClient.auto_decode` is True; otherwise bytes</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">job_id</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span><span class="n">validator</span><span class="o">=</span><span class="n">attr</span><span class="o">.</span><span class="n">validators</span><span class="o">.</span><span class="n">instance_of</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span>
+
+    <span class="n">job_data</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="BeanstalkError">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkError">[docs]</a>
+<span class="nd">@attr</span><span class="o">.</span><span class="n">s</span><span class="p">(</span><span class="nb">hash</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">eq</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">init</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BeanstalkError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+
+    <span class="n">message</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">]):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="n">message</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;ascii&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">message</span> <span class="o">=</span> <span class="n">message</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">BeanstalkError</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">message</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="BeanstalkConnectionError">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkConnectionError">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BeanstalkConnectionError</span><span class="p">(</span><span class="n">BeanstalkError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Raised when the underlying socket connection to beanstalkd fails.</span>
+
+<span class="sd">    Distinguishes connection-level failures (e.g. connection refused, timeout,</span>
+<span class="sd">    DNS errors) from beanstalk protocol errors. Carries the ``host`` and</span>
+<span class="sd">    `port` that were being connected to, and preserves the original socket</span>
+<span class="sd">    error both on :attr:`err` and via implicit exception chaining (``__context__``).</span>
+
+<span class="sd">    This is a subclass of :class:`BeanstalkError` so that existing</span>
+<span class="sd">    ``except BeanstalkError`` callers continue to catch connection failures.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">,</span> <span class="n">err</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">host</span> <span class="o">=</span> <span class="n">host</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">port</span> <span class="o">=</span> <span class="n">port</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">err</span> <span class="o">=</span> <span class="n">err</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">BeanstalkConnectionError</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to connect to beanstalkd at </span><span class="si">{</span><span class="n">host</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">port</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">err</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">yaml_load</span><span class="p">(</span><span class="n">fo</span><span class="p">):</span>
+    <span class="c1"># yaml.safe_load will never use the C loader; we have to detect it ourselves</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">yaml</span><span class="p">,</span> <span class="s1">&#39;CSafeLoader&#39;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">fo</span><span class="p">,</span> <span class="n">Loader</span><span class="o">=</span><span class="n">yaml</span><span class="o">.</span><span class="n">CSafeLoader</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">fo</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">catch_and_raise</span><span class="p">(</span><span class="o">*</span><span class="n">errors</span><span class="p">,</span> <span class="n">raise_as</span><span class="o">=</span><span class="n">BeanstalkConnectionError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Catches specified errors on an instance method and re-raises</span>
+<span class="sd">    as ``raise_as(self.host, self.port, err)``, preserving the chain.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">decorator</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+        <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">wrapper</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">errors</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="n">raise_as</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">wrapper</span>
+    <span class="k">return</span> <span class="n">decorator</span>
+
+
+<div class="viewcode-block" id="BeanstalkInsertingProxy">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkInsertingProxy">[docs]</a>
+<span class="nd">@attr</span><span class="o">.</span><span class="n">s</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BeanstalkInsertingProxy</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Proxy object yielded by :func:`BeanstalkClient.using()`&quot;&quot;&quot;</span>
+
+    <span class="n">beanstalk_client</span><span class="p">:</span> <span class="s1">&#39;BeanstalkClient&#39;</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">()</span>
+    <span class="n">tube</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">()</span>
+
+<div class="viewcode-block" id="BeanstalkInsertingProxy.put_job">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkInsertingProxy.put_job">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">put_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">],</span> <span class="n">pri</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">65536</span><span class="p">,</span> <span class="n">delay</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">ttr</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">120</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Method to insert a job into the tube selected with :func:`BeanstalkClient.using`.</span>
+
+<span class="sd">        :param data: Job body</span>
+<span class="sd">        :type data: Text (either str which will be encoded as utf-8, or bytes which are already utf-8</span>
+<span class="sd">        :param pri: Priority for the job</span>
+<span class="sd">        :type pri: int</span>
+<span class="sd">        :param delay: Delay in seconds before the job should be placed on the ready queue</span>
+<span class="sd">        :type delay: int</span>
+<span class="sd">        :param ttr: Time to reserve (how long a worker may work on this job before we assume the worker is blocked</span>
+<span class="sd">            and give the job to another worker</span>
+<span class="sd">        :type ttr: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">beanstalk_client</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tube</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">beanstalk_client</span><span class="o">.</span><span class="n">put_job</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">pri</span><span class="o">=</span><span class="n">pri</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="n">delay</span><span class="p">,</span> <span class="n">ttr</span><span class="o">=</span><span class="n">ttr</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BeanstalkClient">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BeanstalkClient</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Simple wrapper around the Beanstalk API.</span>
+
+<span class="sd">    :param host: Hostname or IP address to connect to</span>
+<span class="sd">    :type host: str</span>
+<span class="sd">    :param port: Port to connect to</span>
+<span class="sd">    :type port: int</span>
+<span class="sd">    :param socket_timeout: Timeout to set on the socket.</span>
+<span class="sd">    :type socket_timeout: float</span>
+<span class="sd">    :param auto_decode: Attempt to decode job bodies as UTF-8 when reading them</span>
+<span class="sd">    :type auto_decode: bool</span>
+
+<span class="sd">    Doesn&#39;t provide any fanciness for writing consumers or producers. Just lets you invoke methods to call beanstalk</span>
+<span class="sd">    functions.</span>
+
+<span class="sd">      .. warning::</span>
+
+<span class="sd">         Setting socket timeout to a value lower than the value you pass to blocking functions like</span>
+<span class="sd">         :func:`reserve_job()` will cause errors!</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">host</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">port</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">11300</span><span class="p">,</span> <span class="n">socket_timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">auto_decode</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Construct a synchronous Beanstalk Client. Does not connect!</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">host</span> <span class="o">=</span> <span class="n">host</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">port</span> <span class="o">=</span> <span class="n">port</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">socket_timeout</span> <span class="o">=</span> <span class="n">socket_timeout</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reset_state</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">desired_tube</span> <span class="o">=</span> <span class="s1">&#39;default&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">desired_watchlist</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span><span class="s1">&#39;default&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">auto_decode</span> <span class="o">=</span> <span class="n">auto_decode</span>
+
+<div class="viewcode-block" id="BeanstalkClient.from_uri">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.from_uri">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_uri</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">uri</span><span class="p">,</span> <span class="n">socket_timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">auto_decode</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Construct a synchronous Beanstalk Client from a URI.</span>
+
+<span class="sd">        The URI may be of the form beanstalk://host:port or beanstalkd://host:port</span>
+
+<span class="sd">        IPv6 literals must be wrapped in brackets as per RFC 2732.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">parts</span> <span class="o">=</span> <span class="n">urlparse</span><span class="p">(</span><span class="n">uri</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">parts</span><span class="o">.</span><span class="n">scheme</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;beanstalk&#39;</span><span class="p">,</span> <span class="s1">&#39;beanstalkd&#39;</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Invalid scheme </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">parts</span><span class="o">.</span><span class="n">scheme</span><span class="p">)</span>
+        <span class="n">ipv6_md</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;^\[([0-9a-fA-F:]+)\](:[0-9]+)?$&#39;</span><span class="p">,</span> <span class="n">parts</span><span class="o">.</span><span class="n">netloc</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">ipv6_md</span><span class="p">:</span>
+            <span class="n">host</span> <span class="o">=</span> <span class="n">ipv6_md</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">port</span> <span class="o">=</span> <span class="n">ipv6_md</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="ow">or</span> <span class="s1">&#39;11300&#39;</span>
+            <span class="n">port</span> <span class="o">=</span> <span class="n">port</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="s1">&#39;:&#39;</span> <span class="ow">in</span> <span class="n">parts</span><span class="o">.</span><span class="n">netloc</span><span class="p">:</span>
+            <span class="n">host</span><span class="p">,</span> <span class="n">port</span> <span class="o">=</span> <span class="n">parts</span><span class="o">.</span><span class="n">netloc</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">host</span> <span class="o">=</span> <span class="n">parts</span><span class="o">.</span><span class="n">netloc</span>
+            <span class="n">port</span> <span class="o">=</span> <span class="mi">11300</span>
+        <span class="n">port</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">port</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">,</span> <span class="n">socket_timeout</span><span class="o">=</span><span class="n">socket_timeout</span><span class="p">,</span> <span class="n">auto_decode</span><span class="o">=</span><span class="n">auto_decode</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_reset_state</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_watchlist</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span><span class="s1">&#39;default&#39;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_tube</span> <span class="o">=</span> <span class="s1">&#39;default&#39;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial_watch</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">socket</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;</span><span class="si">{0}</span><span class="s1">(</span><span class="si">{1!r}</span><span class="s1">, </span><span class="si">{2!r}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">)</span>  <span class="c1"># pragma: no cover</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s1">&#39;</span><span class="si">{0}</span><span class="s1"> - watching:</span><span class="si">{1}</span><span class="s1">, current:</span><span class="si">{2}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>  <span class="c1"># pragma: no cover</span>
+            <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_watchlist</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_tube</span>  <span class="c1"># pragma: no cover</span>
+        <span class="p">)</span>  <span class="c1"># pragma: no cover</span>
+
+<div class="viewcode-block" id="BeanstalkClient.ping">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.ping">[docs]</a>
+    <span class="nd">@catch_and_raise</span><span class="p">(</span><span class="ne">ConnectionRefusedError</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">timeout</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">error</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">gaierror</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">ping</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check whether a connection to the beanstalk server can be opened.&quot;&quot;&quot;</span>
+        <span class="n">connection</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">create_connection</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">),</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">socket_timeout</span><span class="p">)</span>
+        <span class="n">connection</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+
+    <span class="nd">@catch_and_raise</span><span class="p">(</span><span class="ne">ConnectionRefusedError</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">timeout</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">error</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">gaierror</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_connect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">socket</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">create_connection</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">),</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">socket_timeout</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_re_establish_use_watch</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_socket</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">socket</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_connect</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">socket</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_re_establish_use_watch</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Call after a close/re-connect.</span>
+
+<span class="sd">        Automatically re-establishes the USE and WATCH configs previously setup.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_tube</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">desired_tube</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">desired_tube</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_watchlist</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">desired_watchlist</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">watchlist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">desired_watchlist</span>
+
+<div class="viewcode-block" id="BeanstalkClient.close">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.close">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Close any open connection to the Beanstalk server.</span>
+
+<span class="sd">        This object is still safe to use after calling :func:`close()` ; it will automatically reconnect</span>
+<span class="sd">        and re-establish any open watches / uses.</span>
+
+<span class="sd">        It is a logic error to close the connection while you have a reserved job</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">socket</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">socket</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reset_state</span><span class="p">()</span></div>
+
+
+    <span class="nd">@contextmanager</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_sock_ctx</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">_socket</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_receive_data_with_prefix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prefix</span><span class="p">,</span> <span class="n">sock</span><span class="p">):</span>
+        <span class="n">buf</span> <span class="o">=</span> <span class="sa">b</span><span class="s1">&#39;&#39;</span>
+        <span class="n">target_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">prefix</span><span class="p">)</span> <span class="o">+</span> <span class="mi">28</span>
+        <span class="k">while</span> <span class="sa">b</span><span class="s1">&#39;</span><span class="se">\r\n</span><span class="s1">&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">buf</span><span class="p">:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="n">sock</span><span class="o">.</span><span class="n">recv</span><span class="p">(</span><span class="n">target_len</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">buf</span><span class="p">))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">message</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">buf</span> <span class="o">+=</span> <span class="n">message</span>
+        <span class="k">if</span> <span class="sa">b</span><span class="s1">&#39; &#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">buf</span><span class="p">:</span>
+            <span class="n">error</span> <span class="o">=</span> <span class="n">buf</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span>
+            <span class="k">raise</span> <span class="n">BeanstalkError</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+        <span class="n">first_word</span><span class="p">,</span> <span class="n">rest</span> <span class="o">=</span> <span class="n">buf</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">first_word</span> <span class="o">!=</span> <span class="n">prefix</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">BeanstalkError</span><span class="p">(</span><span class="n">first_word</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receive_data</span><span class="p">(</span><span class="n">sock</span><span class="p">,</span> <span class="n">rest</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_receive_id_and_data_with_prefix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prefix</span><span class="p">,</span> <span class="n">sock</span><span class="p">):</span>
+        <span class="n">buf</span> <span class="o">=</span> <span class="sa">b</span><span class="s1">&#39;&#39;</span>
+        <span class="n">target_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">prefix</span><span class="p">)</span> <span class="o">+</span> <span class="mi">28</span>
+        <span class="k">while</span> <span class="sa">b</span><span class="s1">&#39;</span><span class="se">\r\n</span><span class="s1">&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">buf</span><span class="p">:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="n">sock</span><span class="o">.</span><span class="n">recv</span><span class="p">(</span><span class="n">target_len</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">buf</span><span class="p">))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">message</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">buf</span> <span class="o">+=</span> <span class="n">message</span>
+        <span class="k">if</span> <span class="sa">b</span><span class="s1">&#39; &#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">buf</span><span class="p">:</span>
+            <span class="n">error</span> <span class="o">=</span> <span class="n">buf</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span>
+            <span class="k">raise</span> <span class="n">BeanstalkError</span><span class="p">(</span><span class="n">error</span><span class="p">)</span>
+        <span class="n">first_word</span><span class="p">,</span> <span class="n">rest</span> <span class="o">=</span> <span class="n">buf</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">first_word</span> <span class="o">!=</span> <span class="n">prefix</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">BeanstalkError</span><span class="p">(</span><span class="n">first_word</span><span class="p">)</span>
+        <span class="n">the_id</span><span class="p">,</span> <span class="n">rest</span> <span class="o">=</span> <span class="n">rest</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">the_id</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receive_data</span><span class="p">(</span><span class="n">sock</span><span class="p">,</span> <span class="n">rest</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_receive_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sock</span><span class="p">,</span> <span class="n">initial</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">initial</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">initial</span> <span class="o">=</span> <span class="n">sock</span><span class="o">.</span><span class="n">recv</span><span class="p">(</span><span class="mi">12</span><span class="p">)</span>
+        <span class="n">byte_length</span><span class="p">,</span> <span class="n">rest</span> <span class="o">=</span> <span class="n">initial</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39;</span><span class="se">\r\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">byte_length</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">byte_length</span><span class="p">)</span> <span class="o">+</span> <span class="mi">2</span>
+        <span class="n">buf</span> <span class="o">=</span> <span class="p">[</span><span class="n">rest</span><span class="p">]</span>
+        <span class="n">bytes_read</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">rest</span><span class="p">)</span>
+        <span class="k">while</span> <span class="n">bytes_read</span> <span class="o">&lt;</span> <span class="n">byte_length</span><span class="p">:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="n">sock</span><span class="o">.</span><span class="n">recv</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="mi">4096</span><span class="p">,</span> <span class="n">byte_length</span> <span class="o">-</span> <span class="n">bytes_read</span><span class="p">))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">message</span><span class="p">:</span>
+                <span class="k">break</span>
+            <span class="n">bytes_read</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="n">buf</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+        <span class="n">bytez</span> <span class="o">=</span> <span class="sa">b</span><span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">buf</span><span class="p">)[:</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">auto_decode</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">bytez</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">bytez</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_receive_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sock</span><span class="p">):</span>
+        <span class="n">status</span><span class="p">,</span> <span class="n">gid</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receive_name</span><span class="p">(</span><span class="n">sock</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">status</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">gid</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_receive_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sock</span><span class="p">):</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="n">sock</span><span class="o">.</span><span class="n">recv</span><span class="p">(</span><span class="mi">1024</span><span class="p">)</span>
+        <span class="k">if</span> <span class="sa">b</span><span class="s1">&#39; &#39;</span> <span class="ow">in</span> <span class="n">message</span><span class="p">:</span>
+            <span class="n">status</span><span class="p">,</span> <span class="n">rest</span> <span class="o">=</span> <span class="n">message</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39; &#39;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">status</span><span class="p">,</span> <span class="n">rest</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">BeanstalkError</span><span class="p">(</span><span class="n">message</span><span class="o">.</span><span class="n">rstrip</span><span class="p">())</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_receive_word</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sock</span><span class="p">,</span> <span class="o">*</span><span class="n">expected_words</span><span class="p">):</span>
+        <span class="n">message</span> <span class="o">=</span> <span class="n">sock</span><span class="o">.</span><span class="n">recv</span><span class="p">(</span><span class="mi">1024</span><span class="p">)</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">message</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">expected_words</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">BeanstalkError</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">message</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_send_message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">sock</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">message</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39;</span><span class="se">\r\n</span><span class="s1">&#39;</span><span class="p">):</span>
+                <span class="n">message</span> <span class="o">+=</span> <span class="sa">b</span><span class="s1">&#39;</span><span class="se">\r\n</span><span class="s1">&#39;</span>
+            <span class="k">return</span> <span class="n">sock</span><span class="o">.</span><span class="n">sendall</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">message</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\r\n</span><span class="s1">&#39;</span><span class="p">):</span>
+                <span class="n">message</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\r\n</span><span class="s1">&#39;</span>
+            <span class="k">return</span> <span class="n">sock</span><span class="o">.</span><span class="n">sendall</span><span class="p">(</span><span class="n">message</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span>
+
+<div class="viewcode-block" id="BeanstalkClient.list_tubes">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.list_tubes">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">list_tubes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return a list of tubes that this beanstalk instance knows about</span>
+
+<span class="sd">        :rtype: list of tubes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sock_ctx</span><span class="p">()</span> <span class="k">as</span> <span class="n">sock</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_send_message</span><span class="p">(</span><span class="s1">&#39;list-tubes&#39;</span><span class="p">,</span> <span class="n">sock</span><span class="p">)</span>
+            <span class="n">body</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receive_data_with_prefix</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39;OK&#39;</span><span class="p">,</span> <span class="n">sock</span><span class="p">)</span>
+            <span class="n">tubes</span> <span class="o">=</span> <span class="n">yaml_load</span><span class="p">(</span><span class="n">body</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">tubes</span></div>
+
+
+<div class="viewcode-block" id="BeanstalkClient.stats">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.stats">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">stats</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Return a dictionary with a bunch of instance-wide statistics</span>
+
+<span class="sd">        :rtype: dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sock_ctx</span><span class="p">()</span> <span class="k">as</span> <span class="n">socket</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_send_message</span><span class="p">(</span><span class="s1">&#39;stats&#39;</span><span class="p">,</span> <span class="n">socket</span><span class="p">)</span>
+            <span class="n">body</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receive_data_with_prefix</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39;OK&#39;</span><span class="p">,</span> <span class="n">socket</span><span class="p">)</span>
+            <span class="n">stats</span> <span class="o">=</span> <span class="n">yaml_load</span><span class="p">(</span><span class="n">body</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">stats</span></div>
+
+
+<div class="viewcode-block" id="BeanstalkClient.put_job">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.put_job">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">put_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">],</span> <span class="n">pri</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">65536</span><span class="p">,</span> <span class="n">delay</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">ttr</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">120</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Insert a new job into whatever queue is currently USEd</span>
+
+<span class="sd">        :param data: Job body</span>
+<span class="sd">        :type data: Text (either str which will be encoded as utf-8, or bytes which are already utf-8</span>
+<span class="sd">        :param pri: Priority for the job</span>
+<span class="sd">        :type pri: int</span>
+<span class="sd">        :param delay: Delay in seconds before the job should be placed on the ready queue</span>
+<span class="sd">        :type delay: int</span>
+<span class="sd">        :param ttr: Time to reserve (how long a worker may work on this job before we assume the worker is blocked</span>
+<span class="sd">            and give the job to another worker</span>
+<span class="sd">        :type ttr: int</span>
+
+<span class="sd">        .. seealso::</span>
+
+<span class="sd">           :func:`put_job_into()`</span>
+<span class="sd">              Put a job into a specific tube</span>
+
+<span class="sd">           :func:`using()`</span>
+<span class="sd">              Insert a job using an external guard</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sock_ctx</span><span class="p">()</span> <span class="k">as</span> <span class="n">socket</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="s1">&#39;put </span><span class="si">{pri}</span><span class="s1"> </span><span class="si">{delay}</span><span class="s1"> </span><span class="si">{ttr}</span><span class="s1"> </span><span class="si">{datalen}</span><span class="se">\r\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="n">pri</span><span class="o">=</span><span class="n">pri</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="n">delay</span><span class="p">,</span> <span class="n">ttr</span><span class="o">=</span><span class="n">ttr</span><span class="p">,</span> <span class="n">datalen</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">)</span>
+            <span class="n">message</span> <span class="o">+=</span> <span class="n">data</span>
+            <span class="n">message</span> <span class="o">+=</span> <span class="sa">b</span><span class="s1">&#39;</span><span class="se">\r\n</span><span class="s1">&#39;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_send_message</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">socket</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receive_id</span><span class="p">(</span><span class="n">socket</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BeanstalkClient.put_job_into">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.put_job_into">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">put_job_into</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tube_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">],</span> <span class="n">pri</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">65536</span><span class="p">,</span> <span class="n">delay</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">ttr</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">120</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Insert a new job into a specific queue. Wrapper around :func:`put_job`.</span>
+
+<span class="sd">        :param tube_name: Tube name</span>
+<span class="sd">        :type tube_name: str</span>
+<span class="sd">        :param data: Job body</span>
+<span class="sd">        :type data: Text (either str which will be encoded as utf-8, or bytes which are already utf-8</span>
+<span class="sd">        :param pri: Priority for the job</span>
+<span class="sd">        :type pri: int</span>
+<span class="sd">        :param delay: Delay in seconds before the job should be placed on the ready queue</span>
+<span class="sd">        :type delay: int</span>
+<span class="sd">        :param ttr: Time to reserve (how long a worker may work on this job before we assume the worker is blocked</span>
+<span class="sd">            and give the job to another worker</span>
+<span class="sd">        :type ttr: int</span>
+
+<span class="sd">        .. seealso::</span>
+
+<span class="sd">           :func:`put_job()`</span>
+<span class="sd">              Put a job into whatever the current tube is</span>
+
+<span class="sd">           :func:`using()`</span>
+<span class="sd">              Insert a job using an external guard</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">using</span><span class="p">(</span><span class="n">tube_name</span><span class="p">)</span> <span class="k">as</span> <span class="n">inserter</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">inserter</span><span class="o">.</span><span class="n">put_job</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">pri</span><span class="o">=</span><span class="n">pri</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="n">delay</span><span class="p">,</span> <span class="n">ttr</span><span class="o">=</span><span class="n">ttr</span><span class="p">)</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">watchlist</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_watchlist</span>
+
+    <span class="nd">@watchlist</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">watchlist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tubes</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set the watchlist to the given tubes</span>
+
+<span class="sd">        :param tubes: A list of tubes to watch</span>
+
+<span class="sd">        Automatically un-watches any tubes that are not on the target list</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">tubes</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">tubes</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">tube</span> <span class="ow">in</span> <span class="n">tubes</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_watchlist</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">watch</span><span class="p">(</span><span class="n">tube</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">tube</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_watchlist</span> <span class="o">-</span> <span class="n">tubes</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">ignore</span><span class="p">(</span><span class="n">tube</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BeanstalkClient.watch">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.watch">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">watch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tube</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add the given tube to the watchlist.</span>
+
+<span class="sd">        :param tube: Name of the tube to add to the watchlist</span>
+
+<span class="sd">        Note: Initially, all connections are watching a tube named &quot;default&quot;. If</span>
+<span class="sd">        you manually call :func:`watch()`, we will un-watch the &quot;default&quot; tube.</span>
+<span class="sd">        To keep it in your list, first call :func:`watch()` with the other tubes, then</span>
+<span class="sd">        call :func:`watch()` with &quot;default&quot;.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sock_ctx</span><span class="p">()</span> <span class="k">as</span> <span class="n">socket</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">desired_watchlist</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">tube</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">tube</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_watchlist</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_send_message</span><span class="p">(</span><span class="s1">&#39;watch </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tube</span><span class="p">),</span> <span class="n">socket</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_receive_id</span><span class="p">(</span><span class="n">socket</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_watchlist</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">tube</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_watch</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">tube</span> <span class="o">!=</span> <span class="s1">&#39;default&#39;</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">ignore</span><span class="p">(</span><span class="s1">&#39;default&#39;</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">initial_watch</span> <span class="o">=</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="BeanstalkClient.ignore">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.ignore">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">ignore</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tube</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove the given tube from the watchlist.</span>
+
+<span class="sd">        :param tube: Name of tube to remove from the watchlist</span>
+
+<span class="sd">        If all tubes are :func:`ignore()` d, beanstalk will auto-add &quot;default&quot; to the watchlist</span>
+<span class="sd">        to prevent the list from being empty. See :func:`watch()` for more unformation.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sock_ctx</span><span class="p">()</span> <span class="k">as</span> <span class="n">socket</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">tube</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_watchlist</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="n">tube</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">tube</span> <span class="o">!=</span> <span class="s1">&#39;default&#39;</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">desired_watchlist</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">tube</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">tube</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_watchlist</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_send_message</span><span class="p">(</span><span class="s1">&#39;ignore </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tube</span><span class="p">),</span> <span class="n">socket</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_receive_id</span><span class="p">(</span><span class="n">socket</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_watchlist</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">tube</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_watchlist</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_watchlist</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s1">&#39;default&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BeanstalkClient.stats_job">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.stats_job">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">stats_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fetch statistics about a single job</span>
+
+<span class="sd">        :rtype: dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sock_ctx</span><span class="p">()</span> <span class="k">as</span> <span class="n">socket</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="s1">&#39;job_id&#39;</span><span class="p">):</span>
+                <span class="n">job_id</span> <span class="o">=</span> <span class="n">job_id</span><span class="o">.</span><span class="n">job_id</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_send_message</span><span class="p">(</span><span class="s1">&#39;stats-job </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">),</span> <span class="n">socket</span><span class="p">)</span>
+            <span class="n">body</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receive_data_with_prefix</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39;OK&#39;</span><span class="p">,</span> <span class="n">socket</span><span class="p">)</span>
+            <span class="n">job_status</span> <span class="o">=</span> <span class="n">yaml_load</span><span class="p">(</span><span class="n">body</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">job_status</span></div>
+
+
+<div class="viewcode-block" id="BeanstalkClient.stats_tube">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.stats_tube">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">stats_tube</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tube_name</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fetch statistics about a single tube</span>
+
+<span class="sd">        :param tube_name: Tube to fetch stats about</span>
+<span class="sd">        :rtype: dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sock_ctx</span><span class="p">()</span> <span class="k">as</span> <span class="n">socket</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_send_message</span><span class="p">(</span><span class="s1">&#39;stats-tube </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tube_name</span><span class="p">),</span> <span class="n">socket</span><span class="p">)</span>
+            <span class="n">body</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receive_data_with_prefix</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39;OK&#39;</span><span class="p">,</span> <span class="n">socket</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">yaml_load</span><span class="p">(</span><span class="n">body</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BeanstalkClient.reserve_job">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.reserve_job">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reserve_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reserve a job for this connection. Blocks for TIMEOUT secionds and raises TIMED_OUT if no job was available</span>
+
+<span class="sd">        :param timeout: Time to wait for a job, in seconds.</span>
+<span class="sd">        :type timeout: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">timeout</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">timeout</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">socket_timeout</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">timeout</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">socket_timeout</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;reserve_job timeout must be &lt; socket timeout&#39;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_watchlist</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Select a tube or two before reserving a job&#39;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sock_ctx</span><span class="p">()</span> <span class="k">as</span> <span class="n">socket</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_send_message</span><span class="p">(</span><span class="s1">&#39;reserve-with-timeout </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">timeout</span><span class="p">),</span> <span class="n">socket</span><span class="p">)</span>
+            <span class="n">job_id</span><span class="p">,</span> <span class="n">job_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receive_id_and_data_with_prefix</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39;RESERVED&#39;</span><span class="p">,</span> <span class="n">socket</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Job</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">job_data</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_peek_common</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">typ</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Common implementation for the peek_* functions&quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sock_ctx</span><span class="p">()</span> <span class="k">as</span> <span class="n">socket</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_send_message</span><span class="p">(</span><span class="s1">&#39;peek-</span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">typ</span><span class="p">),</span> <span class="n">socket</span><span class="p">)</span>
+            <span class="n">job_id</span><span class="p">,</span> <span class="n">job_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receive_id_and_data_with_prefix</span><span class="p">(</span><span class="sa">b</span><span class="s1">&#39;FOUND&#39;</span><span class="p">,</span> <span class="n">socket</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">Job</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">job_data</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BeanstalkClient.peek_ready">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.peek_ready">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">peek_ready</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Peek at the job job on the ready queue.</span>
+
+<span class="sd">        :rtype: :class:`Job`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_peek_common</span><span class="p">(</span><span class="s1">&#39;ready&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BeanstalkClient.peek_delayed">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.peek_delayed">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">peek_delayed</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Peek at the job job on the delayed queue&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_peek_common</span><span class="p">(</span><span class="s1">&#39;delayed&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BeanstalkClient.peek_buried">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.peek_buried">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">peek_buried</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Peek at the top job on the buried queue&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_peek_common</span><span class="p">(</span><span class="s1">&#39;buried&#39;</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_common_iter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">kallable</span><span class="p">,</span> <span class="n">error</span><span class="p">):</span>
+        <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">job</span> <span class="o">=</span> <span class="n">kallable</span><span class="p">()</span>
+            <span class="k">except</span> <span class="n">BeanstalkError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">message</span> <span class="o">!=</span> <span class="n">error</span><span class="p">:</span>
+                    <span class="k">raise</span>
+                <span class="k">break</span>
+            <span class="k">yield</span> <span class="n">job</span>
+
+<div class="viewcode-block" id="BeanstalkClient.reserve_iter">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.reserve_iter">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reserve_iter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reserve jobs as an iterator. Ends iteration when there are no more jobs immediately available&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_common_iter</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">reserve_job</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="s1">&#39;TIMED_OUT&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BeanstalkClient.peek_ready_iter">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.peek_ready_iter">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">peek_ready_iter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Peek at ready jobs in sequence&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_common_iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">peek_ready</span><span class="p">,</span> <span class="s1">&#39;NOT_FOUND&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BeanstalkClient.peek_delayed_iter">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.peek_delayed_iter">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">peek_delayed_iter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Peek at delayed jobs in sequence&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_common_iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">peek_delayed</span><span class="p">,</span> <span class="s1">&#39;NOT_FOUND&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BeanstalkClient.peek_buried_iter">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.peek_buried_iter">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">peek_buried_iter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Peek at buried jobs in sequence&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_common_iter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">peek_buried</span><span class="p">,</span> <span class="s1">&#39;NOT_FOUND&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BeanstalkClient.delete_job">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.delete_job">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">delete_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Delete the given job id. The job must have been previously reserved by this connection</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="s1">&#39;job_id&#39;</span><span class="p">):</span>
+            <span class="n">job_id</span> <span class="o">=</span> <span class="n">job_id</span><span class="o">.</span><span class="n">job_id</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sock_ctx</span><span class="p">()</span> <span class="k">as</span> <span class="n">socket</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_send_message</span><span class="p">(</span><span class="s1">&#39;delete </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">),</span> <span class="n">socket</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_receive_word</span><span class="p">(</span><span class="n">socket</span><span class="p">,</span> <span class="sa">b</span><span class="s1">&#39;DELETED&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BeanstalkClient.bury_job">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.bury_job">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">bury_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">pri</span><span class="o">=</span><span class="mi">65536</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Mark the given job_id as buried. The job must have been previously reserved by this connection</span>
+
+<span class="sd">        :param job_id: Job to bury</span>
+<span class="sd">        :param pri: Priority for the newly-buried job. If not passed, will keep its current priority</span>
+<span class="sd">        :type pri: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="s1">&#39;job_id&#39;</span><span class="p">):</span>
+            <span class="n">job_id</span> <span class="o">=</span> <span class="n">job_id</span><span class="o">.</span><span class="n">job_id</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sock_ctx</span><span class="p">()</span> <span class="k">as</span> <span class="n">socket</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_send_message</span><span class="p">(</span><span class="s1">&#39;bury </span><span class="si">{0}</span><span class="s1"> </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">pri</span><span class="p">),</span> <span class="n">socket</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receive_word</span><span class="p">(</span><span class="n">socket</span><span class="p">,</span> <span class="sa">b</span><span class="s1">&#39;BURIED&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BeanstalkClient.release_job">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.release_job">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">release_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">pri</span><span class="o">=</span><span class="mi">65536</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Put a job back on the queue to be processed (indicating that you&#39;ve aborted it)</span>
+
+<span class="sd">        You can only release a job which you have reserved using :func:`reserve_job()` or :func:`reserve_iter()`.</span>
+
+<span class="sd">        :param job_id: Job ID to return</span>
+<span class="sd">        :param pri: New priority (if not passed, will use old priority)</span>
+<span class="sd">        :type pri: int</span>
+<span class="sd">        :param delay: New delay for job (if not passed, will use 0)</span>
+<span class="sd">        :type delay: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="s1">&#39;job_id&#39;</span><span class="p">):</span>
+            <span class="n">job_id</span> <span class="o">=</span> <span class="n">job_id</span><span class="o">.</span><span class="n">job_id</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sock_ctx</span><span class="p">()</span> <span class="k">as</span> <span class="n">socket</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_send_message</span><span class="p">(</span><span class="s1">&#39;release </span><span class="si">{0}</span><span class="s1"> </span><span class="si">{1}</span><span class="s1"> </span><span class="si">{2}</span><span class="se">\r\n</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">pri</span><span class="p">,</span> <span class="n">delay</span><span class="p">),</span> <span class="n">socket</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receive_word</span><span class="p">(</span><span class="n">socket</span><span class="p">,</span> <span class="sa">b</span><span class="s1">&#39;RELEASED&#39;</span><span class="p">,</span> <span class="sa">b</span><span class="s1">&#39;BURIED&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BeanstalkClient.kick_job">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.kick_job">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">kick_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Kick the given job id. The job must either be in the DELAYED or BURIED state and will be immediately moved to</span>
+<span class="sd">        the READY state.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="s1">&#39;job_id&#39;</span><span class="p">):</span>
+            <span class="n">job_id</span> <span class="o">=</span> <span class="n">job_id</span><span class="o">.</span><span class="n">job_id</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sock_ctx</span><span class="p">()</span> <span class="k">as</span> <span class="n">socket</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_send_message</span><span class="p">(</span><span class="s1">&#39;kick-job </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job_id</span><span class="p">),</span> <span class="n">socket</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_receive_word</span><span class="p">(</span><span class="n">socket</span><span class="p">,</span> <span class="sa">b</span><span class="s1">&#39;KICKED&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BeanstalkClient.use">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.use">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">use</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tube</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Start producing jobs into the given tube.</span>
+
+<span class="sd">        :param tube: Name of the tube to USE</span>
+
+<span class="sd">        Subsequent calls to :func:`put_job` insert jobs into this tube.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sock_ctx</span><span class="p">()</span> <span class="k">as</span> <span class="n">socket</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_tube</span> <span class="o">!=</span> <span class="n">tube</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">desired_tube</span> <span class="o">=</span> <span class="n">tube</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_send_message</span><span class="p">(</span><span class="s1">&#39;use </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tube</span><span class="p">),</span> <span class="n">socket</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_receive_name</span><span class="p">(</span><span class="n">socket</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">current_tube</span> <span class="o">=</span> <span class="n">tube</span></div>
+
+
+<div class="viewcode-block" id="BeanstalkClient.using">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.using">[docs]</a>
+    <span class="nd">@contextmanager</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">using</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tube</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Context-manager to insert jobs into a specific tube</span>
+
+<span class="sd">        :param tube: Tube to insert to</span>
+
+<span class="sd">        Yields out an instance of :class:`BeanstalkInsertingProxy` to insert items into that tube</span>
+
+<span class="sd">        .. seealso::</span>
+
+<span class="sd">           :func:`use()`</span>
+<span class="sd">              Change the default tube</span>
+
+<span class="sd">           :func:`put_job()`</span>
+<span class="sd">              Put a job into whatever the current tube is</span>
+
+<span class="sd">           :func:`put_job_into()`</span>
+<span class="sd">              Put a job into a specific tube</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">current_tube</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_tube</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="n">tube</span><span class="p">)</span>
+            <span class="k">yield</span> <span class="n">BeanstalkInsertingProxy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tube</span><span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="n">current_tube</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BeanstalkClient.kick_jobs">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.kick_jobs">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">kick_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_jobs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Kick some number of jobs from the buried queue onto the ready queue.</span>
+
+<span class="sd">        :param num_jobs: Number of jobs to kick</span>
+<span class="sd">        :type num_jobs: int</span>
+
+<span class="sd">        If not that many jobs are in the buried queue, it will kick as many as it can.&quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sock_ctx</span><span class="p">()</span> <span class="k">as</span> <span class="n">socket</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_send_message</span><span class="p">(</span><span class="s1">&#39;kick </span><span class="si">{0}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">num_jobs</span><span class="p">),</span> <span class="n">socket</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receive_id</span><span class="p">(</span><span class="n">socket</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BeanstalkClient.pause_tube">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.pause_tube">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">pause_tube</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tube</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="mi">3600</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Pause a tube for some number of seconds, preventing it from issuing jobs.</span>
+
+<span class="sd">        :param delay: Time to pause for, in seconds</span>
+<span class="sd">        :type delay: int</span>
+
+<span class="sd">        There is no way to permanently pause a tube; passing 0 for delay actually un-pauses the tube.</span>
+
+<span class="sd">        .. seealso::</span>
+
+<span class="sd">           :func:`unpause_tube()`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sock_ctx</span><span class="p">()</span> <span class="k">as</span> <span class="n">socket</span><span class="p">:</span>
+            <span class="n">delay</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">delay</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_send_message</span><span class="p">(</span><span class="s1">&#39;pause-tube </span><span class="si">{0}</span><span class="s1"> </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tube</span><span class="p">,</span> <span class="n">delay</span><span class="p">),</span> <span class="n">socket</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receive_word</span><span class="p">(</span><span class="n">socket</span><span class="p">,</span> <span class="sa">b</span><span class="s1">&#39;PAUSED&#39;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BeanstalkClient.unpause_tube">
+<a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.unpause_tube">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">unpause_tube</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tube</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Unpause a tube which was previously paused with :func:`pause_tube()`.</span>
+
+<span class="sd">        .. seealso::</span>
+
+<span class="sd">           :func:`pause_tube()`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sock_ctx</span><span class="p">()</span> <span class="k">as</span> <span class="n">socket</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_send_message</span><span class="p">(</span><span class="s1">&#39;pause-tube </span><span class="si">{0}</span><span class="s1"> 0&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">tube</span><span class="p">),</span> <span class="n">socket</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_receive_word</span><span class="p">(</span><span class="n">socket</span><span class="p">,</span> <span class="sa">b</span><span class="s1">&#39;PAUSED&#39;</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">pystalk  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">pystalk.client</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2016, EasyPost.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.1.0.
+    </div>
+  </body>
+</html>

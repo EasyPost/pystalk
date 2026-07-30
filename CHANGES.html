@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>pystalk ChangeLog &#8212; pystalk  documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/classic.css?v=2bf1fcf8" />
+    
+    <script src="_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="pystalk documentation" href="index.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="index.html" title="pystalk documentation"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">pystalk  documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">pystalk ChangeLog</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="pystalk-changelog">
+<h1>pystalk ChangeLog<a class="headerlink" href="#pystalk-changelog" title="Link to this heading">¶</a></h1>
+<section id="id1">
+<h2>0.9.0<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Drop support for Python &lt; 3.9</p></li>
+<li><p>Fix <code class="xref py py-meth docutils literal notranslate"><span class="pre">pystalk.client.BeanstalkClient.put_job()</span></code> to compute <cite>put</cite>
+payload length from UTF-8 encoded bytes, preventing <cite>EXPECTED_CRLF</cite> errors
+for non-ASCII job bodies.</p></li>
+</ul>
+</section>
+<section id="id2">
+<h2>0.8.1<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Fix <code class="xref py py-class docutils literal notranslate"><span class="pre">pystalk.pool.ProductionPool</span></code> failover and backoff behavior so
+connection failures try each available server once before raising
+<code class="xref py py-class docutils literal notranslate"><span class="pre">pystalk.pool.NoMoreClients</span></code>.</p></li>
+</ul>
+</section>
+<section id="id3">
+<h2>0.8.0<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Add <a class="reference internal" href="index.html#pystalk.BeanstalkConnectionError" title="pystalk.client.BeanstalkConnectionError"><code class="xref py py-class docutils literal notranslate"><span class="pre">pystalk.client.BeanstalkConnectionError</span></code></a>, a subclass of
+<a class="reference internal" href="index.html#pystalk.BeanstalkError" title="pystalk.client.BeanstalkError"><code class="xref py py-class docutils literal notranslate"><span class="pre">pystalk.client.BeanstalkError</span></code></a> raised when the underlying socket
+connection to beanstalkd fails (connection refused, timeout, or DNS errors),
+distinguishing connection-level failures from beanstalk protocol errors.
+Carries the <cite>host</cite> and <cite>port</cite> that were being connected to, and preserves
+the original socket error on <code class="xref py py-attr docutils literal notranslate"><span class="pre">err</span></code>.</p></li>
+<li><p>Add <code class="xref py py-meth docutils literal notranslate"><span class="pre">pystalk.client.BeanstalkClient.ping()</span></code> to test connectivity
+without changing the client’s active connection, current tube, or watchlist.</p></li>
+<li><p>Remove the legacy <code class="docutils literal notranslate"><span class="pre">six</span></code> compatibility dependency.</p></li>
+</ul>
+</section>
+<section id="id4">
+<h2>0.7.0<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Drop support for Python &lt; 3.6</p></li>
+<li><p>Add <cite>pystalk.pool.ProductionPool</cite></p></li>
+<li><p>Add some <cite>typing</cite> annotations</p></li>
+</ul>
+</section>
+<section id="id5">
+<h2>0.6.1<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>More emphatically remove <cite>tests</cite> from distributed packages</p></li>
+</ul>
+</section>
+<section id="id6">
+<h2>0.6.0<a class="headerlink" href="#id6" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>add compatibility for <cite>attrs</cite> 19.2.0 and above</p></li>
+<li><p>drop support for Python 3.3.x</p></li>
+</ul>
+</section>
+<section id="id7">
+<h2>0.5.1<a class="headerlink" href="#id7" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>attrs changed a kwarg from <cite>convert</cite> to <cite>converter</cite></p></li>
+</ul>
+</section>
+<section id="id8">
+<h2>0.5.0<a class="headerlink" href="#id8" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Move tests from CircleCI to Travis-CI</p></li>
+<li><p>Add <code class="xref py py-func docutils literal notranslate"><span class="pre">pystalk.client.BeanstalkClient.from_uri()</span></code> to create a <cite>BeanstalkClient</cite> instance from a URI/URL</p></li>
+</ul>
+</section>
+<section id="id9">
+<h2>0.4.0<a class="headerlink" href="#id9" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Add <code class="xref py py-func docutils literal notranslate"><span class="pre">pystalk.client.BeanstalkClient.peek_ready_iter()</span></code> mirroring <cite>peek_delayed_iter</cite> and <cite>peek_buried_iter</cite></p></li>
+<li><p>Add <code class="xref py py-func docutils literal notranslate"><span class="pre">pystalk.client.BeanstalkClient.kick_job()</span></code> to kick a single job by ID</p></li>
+</ul>
+</section>
+<section id="id10">
+<h2>0.3.1<a class="headerlink" href="#id10" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Fix crash when setting <cite>socket_timeout</cite> to <cite>None</cite></p></li>
+</ul>
+</section>
+<section id="id11">
+<h2>0.3.0<a class="headerlink" href="#id11" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Add <code class="xref py py-func docutils literal notranslate"><span class="pre">pystalk.client.BeanstalkClient.using()</span></code> and <code class="xref py py-func docutils literal notranslate"><span class="pre">pystalk.client.BeanstalkClient.put_job_into()</span></code> as clearer APIs for inserting jobs</p></li>
+<li><p>Re-establish USE and WATCH on close/re-open</p></li>
+</ul>
+</section>
+<section id="id12">
+<h2>0.2.1<a class="headerlink" href="#id12" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Add <code class="xref py py-func docutils literal notranslate"><span class="pre">pystalk.client.BeanstalkClient.close()</span></code> method to the <a class="reference internal" href="index.html#pystalk.BeanstalkClient" title="pystalk.client.BeanstalkClient"><code class="xref py py-class docutils literal notranslate"><span class="pre">pystalk.client.BeanstalkClient</span></code></a> class</p></li>
+<li><p>Add a plethora of new and fixed docstrings</p></li>
+<li><p>Start hosting docs at <a class="reference external" href="http://pystalk.readthedocs.io">http://pystalk.readthedocs.io</a></p></li>
+</ul>
+</section>
+<section id="id13">
+<h2>0.2<a class="headerlink" href="#id13" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Initial release</p></li>
+</ul>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="index.html">Table of Contents</a></h3>
+    <ul>
+<li><a class="reference internal" href="#">pystalk ChangeLog</a><ul>
+<li><a class="reference internal" href="#id1">0.9.0</a></li>
+<li><a class="reference internal" href="#id2">0.8.1</a></li>
+<li><a class="reference internal" href="#id3">0.8.0</a></li>
+<li><a class="reference internal" href="#id4">0.7.0</a></li>
+<li><a class="reference internal" href="#id5">0.6.1</a></li>
+<li><a class="reference internal" href="#id6">0.6.0</a></li>
+<li><a class="reference internal" href="#id7">0.5.1</a></li>
+<li><a class="reference internal" href="#id8">0.5.0</a></li>
+<li><a class="reference internal" href="#id9">0.4.0</a></li>
+<li><a class="reference internal" href="#id10">0.3.1</a></li>
+<li><a class="reference internal" href="#id11">0.3.0</a></li>
+<li><a class="reference internal" href="#id12">0.2.1</a></li>
+<li><a class="reference internal" href="#id13">0.2</a></li>
+</ul>
+</li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="index.html"
+                          title="previous chapter">pystalk documentation</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/CHANGES.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="index.html" title="pystalk documentation"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">pystalk  documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">pystalk ChangeLog</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2016, EasyPost.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.1.0.
+    </div>
+  </body>
+</html>

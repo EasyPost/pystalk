@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="./">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>pystalk documentation &#8212; pystalk  documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="_static/classic.css?v=2bf1fcf8" />
+    
+    <script src="_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="pystalk ChangeLog" href="CHANGES.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="CHANGES.html" title="pystalk ChangeLog"
+             accesskey="N">next</a> |</li>
+        <li class="nav-item nav-item-0"><a href="#">pystalk  documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">pystalk documentation</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="pystalk-documentation">
+<h1>pystalk documentation<a class="headerlink" href="#pystalk-documentation" title="Link to this heading">¶</a></h1>
+<p><strong>pystalk</strong> is a simple Python module for interacting with the
+<a class="reference external" href="https://kr.github.io/beanstalkd/">beanstalk</a> task queueing daemon.
+It doesn’t provide much magic, but is suitable for building all sorts of
+functionality on top of.</p>
+<p>This work is available under the terms of the ISC License.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference external" href="https://github.com/easypost/beancmd">https://github.com/easypost/beancmd</a></p>
+</div>
+<section id="contents">
+<h2>Contents<a class="headerlink" href="#contents" title="Link to this heading">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="CHANGES.html">pystalk ChangeLog</a></li>
+</ul>
+</div>
+</section>
+<section id="members">
+<h2>Members<a class="headerlink" href="#members" title="Link to this heading">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pystalk.</span></span><span class="sig-name descname"><span class="pre">BeanstalkClient</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">host</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">port</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">11300</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">socket_timeout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">auto_decode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient" title="Link to this definition">¶</a></dt>
+<dd><p>Simple wrapper around the Beanstalk API.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>host</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Hostname or IP address to connect to</p></li>
+<li><p><strong>port</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Port to connect to</p></li>
+<li><p><strong>socket_timeout</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Timeout to set on the socket.</p></li>
+<li><p><strong>auto_decode</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Attempt to decode job bodies as UTF-8 when reading them</p></li>
+</ul>
+</dd>
+</dl>
+<p>Doesn’t provide any fanciness for writing consumers or producers. Just lets you invoke methods to call beanstalk
+functions.</p>
+<blockquote>
+<div><div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Setting socket timeout to a value lower than the value you pass to blocking functions like
+<a class="reference internal" href="#pystalk.BeanstalkClient.reserve_job" title="pystalk.BeanstalkClient.reserve_job"><code class="xref py py-func docutils literal notranslate"><span class="pre">reserve_job()</span></code></a> will cause errors!</p>
+</div>
+</div></blockquote>
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.bury_job">
+<span class="sig-name descname"><span class="pre">bury_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pri</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">65536</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.bury_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.bury_job" title="Link to this definition">¶</a></dt>
+<dd><p>Mark the given job_id as buried. The job must have been previously reserved by this connection</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>job_id</strong> – Job to bury</p></li>
+<li><p><strong>pri</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Priority for the newly-buried job. If not passed, will keep its current priority</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.close">
+<span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.close"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.close" title="Link to this definition">¶</a></dt>
+<dd><p>Close any open connection to the Beanstalk server.</p>
+<p>This object is still safe to use after calling <a class="reference internal" href="#pystalk.BeanstalkClient.close" title="pystalk.BeanstalkClient.close"><code class="xref py py-func docutils literal notranslate"><span class="pre">close()</span></code></a> ; it will automatically reconnect
+and re-establish any open watches / uses.</p>
+<p>It is a logic error to close the connection while you have a reserved job</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.delete_job">
+<span class="sig-name descname"><span class="pre">delete_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.delete_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.delete_job" title="Link to this definition">¶</a></dt>
+<dd><p>Delete the given job id. The job must have been previously reserved by this connection</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.from_uri">
+<span class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">from_uri</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">uri</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">socket_timeout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">auto_decode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.from_uri"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.from_uri" title="Link to this definition">¶</a></dt>
+<dd><p>Construct a synchronous Beanstalk Client from a URI.</p>
+<p>The URI may be of the form beanstalk://host:port or beanstalkd://host:port</p>
+<p>IPv6 literals must be wrapped in brackets as per RFC 2732.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.ignore">
+<span class="sig-name descname"><span class="pre">ignore</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tube</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.ignore"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.ignore" title="Link to this definition">¶</a></dt>
+<dd><p>Remove the given tube from the watchlist.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>tube</strong> – Name of tube to remove from the watchlist</p>
+</dd>
+</dl>
+<p>If all tubes are <a class="reference internal" href="#pystalk.BeanstalkClient.ignore" title="pystalk.BeanstalkClient.ignore"><code class="xref py py-func docutils literal notranslate"><span class="pre">ignore()</span></code></a> d, beanstalk will auto-add “default” to the watchlist
+to prevent the list from being empty. See <a class="reference internal" href="#pystalk.BeanstalkClient.watch" title="pystalk.BeanstalkClient.watch"><code class="xref py py-func docutils literal notranslate"><span class="pre">watch()</span></code></a> for more unformation.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.kick_job">
+<span class="sig-name descname"><span class="pre">kick_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.kick_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.kick_job" title="Link to this definition">¶</a></dt>
+<dd><p>Kick the given job id. The job must either be in the DELAYED or BURIED state and will be immediately moved to
+the READY state.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.kick_jobs">
+<span class="sig-name descname"><span class="pre">kick_jobs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_jobs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.kick_jobs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.kick_jobs" title="Link to this definition">¶</a></dt>
+<dd><p>Kick some number of jobs from the buried queue onto the ready queue.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>num_jobs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of jobs to kick</p>
+</dd>
+</dl>
+<p>If not that many jobs are in the buried queue, it will kick as many as it can.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.list_tubes">
+<span class="sig-name descname"><span class="pre">list_tubes</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.list_tubes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.list_tubes" title="Link to this definition">¶</a></dt>
+<dd><p>Return a list of tubes that this beanstalk instance knows about</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a> of tubes</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.pause_tube">
+<span class="sig-name descname"><span class="pre">pause_tube</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tube</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delay</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3600</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.pause_tube"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.pause_tube" title="Link to this definition">¶</a></dt>
+<dd><p>Pause a tube for some number of seconds, preventing it from issuing jobs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>delay</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Time to pause for, in seconds</p>
+</dd>
+</dl>
+<p>There is no way to permanently pause a tube; passing 0 for delay actually un-pauses the tube.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#pystalk.BeanstalkClient.unpause_tube" title="pystalk.BeanstalkClient.unpause_tube"><code class="xref py py-func docutils literal notranslate"><span class="pre">unpause_tube()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.peek_buried">
+<span class="sig-name descname"><span class="pre">peek_buried</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.peek_buried"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.peek_buried" title="Link to this definition">¶</a></dt>
+<dd><p>Peek at the top job on the buried queue</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.peek_buried_iter">
+<span class="sig-name descname"><span class="pre">peek_buried_iter</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.peek_buried_iter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.peek_buried_iter" title="Link to this definition">¶</a></dt>
+<dd><p>Peek at buried jobs in sequence</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.peek_delayed">
+<span class="sig-name descname"><span class="pre">peek_delayed</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.peek_delayed"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.peek_delayed" title="Link to this definition">¶</a></dt>
+<dd><p>Peek at the job job on the delayed queue</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.peek_delayed_iter">
+<span class="sig-name descname"><span class="pre">peek_delayed_iter</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.peek_delayed_iter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.peek_delayed_iter" title="Link to this definition">¶</a></dt>
+<dd><p>Peek at delayed jobs in sequence</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.peek_ready">
+<span class="sig-name descname"><span class="pre">peek_ready</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.peek_ready"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.peek_ready" title="Link to this definition">¶</a></dt>
+<dd><p>Peek at the job job on the ready queue.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><code class="xref py py-class docutils literal notranslate"><span class="pre">Job</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.peek_ready_iter">
+<span class="sig-name descname"><span class="pre">peek_ready_iter</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.peek_ready_iter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.peek_ready_iter" title="Link to this definition">¶</a></dt>
+<dd><p>Peek at ready jobs in sequence</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.ping">
+<span class="sig-name descname"><span class="pre">ping</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.ping"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.ping" title="Link to this definition">¶</a></dt>
+<dd><p>Check whether a connection to the beanstalk server can be opened.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.put_job">
+<span class="sig-name descname"><span class="pre">put_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.14)"><span class="pre">bytes</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">pri</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">65536</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delay</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ttr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">120</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.put_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.put_job" title="Link to this definition">¶</a></dt>
+<dd><p>Insert a new job into whatever queue is currently USEd</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>Text</em><em> (</em><em>either str which will be encoded as utf-8</em><em>, or </em><em>bytes which are already utf-8</em>) – Job body</p></li>
+<li><p><strong>pri</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Priority for the job</p></li>
+<li><p><strong>delay</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Delay in seconds before the job should be placed on the ready queue</p></li>
+<li><p><strong>ttr</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Time to reserve (how long a worker may work on this job before we assume the worker is blocked
+and give the job to another worker</p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="#pystalk.BeanstalkClient.put_job_into" title="pystalk.BeanstalkClient.put_job_into"><code class="xref py py-func docutils literal notranslate"><span class="pre">put_job_into()</span></code></a></dt><dd><p>Put a job into a specific tube</p>
+</dd>
+<dt><a class="reference internal" href="#pystalk.BeanstalkClient.using" title="pystalk.BeanstalkClient.using"><code class="xref py py-func docutils literal notranslate"><span class="pre">using()</span></code></a></dt><dd><p>Insert a job using an external guard</p>
+</dd>
+</dl>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.put_job_into">
+<span class="sig-name descname"><span class="pre">put_job_into</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tube_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.14)"><span class="pre">bytes</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">pri</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">65536</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delay</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ttr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">120</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.put_job_into"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.put_job_into" title="Link to this definition">¶</a></dt>
+<dd><p>Insert a new job into a specific queue. Wrapper around <a class="reference internal" href="#pystalk.BeanstalkClient.put_job" title="pystalk.BeanstalkClient.put_job"><code class="xref py py-func docutils literal notranslate"><span class="pre">put_job()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>tube_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Tube name</p></li>
+<li><p><strong>data</strong> (<em>Text</em><em> (</em><em>either str which will be encoded as utf-8</em><em>, or </em><em>bytes which are already utf-8</em>) – Job body</p></li>
+<li><p><strong>pri</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Priority for the job</p></li>
+<li><p><strong>delay</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Delay in seconds before the job should be placed on the ready queue</p></li>
+<li><p><strong>ttr</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Time to reserve (how long a worker may work on this job before we assume the worker is blocked
+and give the job to another worker</p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="#pystalk.BeanstalkClient.put_job" title="pystalk.BeanstalkClient.put_job"><code class="xref py py-func docutils literal notranslate"><span class="pre">put_job()</span></code></a></dt><dd><p>Put a job into whatever the current tube is</p>
+</dd>
+<dt><a class="reference internal" href="#pystalk.BeanstalkClient.using" title="pystalk.BeanstalkClient.using"><code class="xref py py-func docutils literal notranslate"><span class="pre">using()</span></code></a></dt><dd><p>Insert a job using an external guard</p>
+</dd>
+</dl>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.release_job">
+<span class="sig-name descname"><span class="pre">release_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pri</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">65536</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delay</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.release_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.release_job" title="Link to this definition">¶</a></dt>
+<dd><p>Put a job back on the queue to be processed (indicating that you’ve aborted it)</p>
+<p>You can only release a job which you have reserved using <a class="reference internal" href="#pystalk.BeanstalkClient.reserve_job" title="pystalk.BeanstalkClient.reserve_job"><code class="xref py py-func docutils literal notranslate"><span class="pre">reserve_job()</span></code></a> or <a class="reference internal" href="#pystalk.BeanstalkClient.reserve_iter" title="pystalk.BeanstalkClient.reserve_iter"><code class="xref py py-func docutils literal notranslate"><span class="pre">reserve_iter()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>job_id</strong> – Job ID to return</p></li>
+<li><p><strong>pri</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – New priority (if not passed, will use old priority)</p></li>
+<li><p><strong>delay</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – New delay for job (if not passed, will use 0)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.reserve_iter">
+<span class="sig-name descname"><span class="pre">reserve_iter</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.reserve_iter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.reserve_iter" title="Link to this definition">¶</a></dt>
+<dd><p>Reserve jobs as an iterator. Ends iteration when there are no more jobs immediately available</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.reserve_job">
+<span class="sig-name descname"><span class="pre">reserve_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.reserve_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.reserve_job" title="Link to this definition">¶</a></dt>
+<dd><p>Reserve a job for this connection. Blocks for TIMEOUT secionds and raises TIMED_OUT if no job was available</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>timeout</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Time to wait for a job, in seconds.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.stats">
+<span class="sig-name descname"><span class="pre">stats</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.stats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.stats" title="Link to this definition">¶</a></dt>
+<dd><p>Return a dictionary with a bunch of instance-wide statistics</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)">dict</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.stats_job">
+<span class="sig-name descname"><span class="pre">stats_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.stats_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.stats_job" title="Link to this definition">¶</a></dt>
+<dd><p>Fetch statistics about a single job</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)">dict</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.stats_tube">
+<span class="sig-name descname"><span class="pre">stats_tube</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tube_name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.stats_tube"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.stats_tube" title="Link to this definition">¶</a></dt>
+<dd><p>Fetch statistics about a single tube</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>tube_name</strong> – Tube to fetch stats about</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)">dict</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.unpause_tube">
+<span class="sig-name descname"><span class="pre">unpause_tube</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tube</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.unpause_tube"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.unpause_tube" title="Link to this definition">¶</a></dt>
+<dd><p>Unpause a tube which was previously paused with <a class="reference internal" href="#pystalk.BeanstalkClient.pause_tube" title="pystalk.BeanstalkClient.pause_tube"><code class="xref py py-func docutils literal notranslate"><span class="pre">pause_tube()</span></code></a>.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference internal" href="#pystalk.BeanstalkClient.pause_tube" title="pystalk.BeanstalkClient.pause_tube"><code class="xref py py-func docutils literal notranslate"><span class="pre">pause_tube()</span></code></a></p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.use">
+<span class="sig-name descname"><span class="pre">use</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tube</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.use"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.use" title="Link to this definition">¶</a></dt>
+<dd><p>Start producing jobs into the given tube.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>tube</strong> – Name of the tube to USE</p>
+</dd>
+</dl>
+<p>Subsequent calls to <a class="reference internal" href="#pystalk.BeanstalkClient.put_job" title="pystalk.BeanstalkClient.put_job"><code class="xref py py-func docutils literal notranslate"><span class="pre">put_job()</span></code></a> insert jobs into this tube.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.using">
+<span class="sig-name descname"><span class="pre">using</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tube</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.using"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.using" title="Link to this definition">¶</a></dt>
+<dd><p>Context-manager to insert jobs into a specific tube</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>tube</strong> – Tube to insert to</p>
+</dd>
+</dl>
+<p>Yields out an instance of <code class="xref py py-class docutils literal notranslate"><span class="pre">BeanstalkInsertingProxy</span></code> to insert items into that tube</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="#pystalk.BeanstalkClient.use" title="pystalk.BeanstalkClient.use"><code class="xref py py-func docutils literal notranslate"><span class="pre">use()</span></code></a></dt><dd><p>Change the default tube</p>
+</dd>
+<dt><a class="reference internal" href="#pystalk.BeanstalkClient.put_job" title="pystalk.BeanstalkClient.put_job"><code class="xref py py-func docutils literal notranslate"><span class="pre">put_job()</span></code></a></dt><dd><p>Put a job into whatever the current tube is</p>
+</dd>
+<dt><a class="reference internal" href="#pystalk.BeanstalkClient.put_job_into" title="pystalk.BeanstalkClient.put_job_into"><code class="xref py py-func docutils literal notranslate"><span class="pre">put_job_into()</span></code></a></dt><dd><p>Put a job into a specific tube</p>
+</dd>
+</dl>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.watch">
+<span class="sig-name descname"><span class="pre">watch</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tube</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkClient.watch"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkClient.watch" title="Link to this definition">¶</a></dt>
+<dd><p>Add the given tube to the watchlist.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>tube</strong> – Name of the tube to add to the watchlist</p>
+</dd>
+</dl>
+<p>Note: Initially, all connections are watching a tube named “default”. If
+you manually call <a class="reference internal" href="#pystalk.BeanstalkClient.watch" title="pystalk.BeanstalkClient.watch"><code class="xref py py-func docutils literal notranslate"><span class="pre">watch()</span></code></a>, we will un-watch the “default” tube.
+To keep it in your list, first call <a class="reference internal" href="#pystalk.BeanstalkClient.watch" title="pystalk.BeanstalkClient.watch"><code class="xref py py-func docutils literal notranslate"><span class="pre">watch()</span></code></a> with the other tubes, then
+call <a class="reference internal" href="#pystalk.BeanstalkClient.watch" title="pystalk.BeanstalkClient.watch"><code class="xref py py-func docutils literal notranslate"><span class="pre">watch()</span></code></a> with “default”.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="pystalk.BeanstalkClient.watchlist">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">watchlist</span></span><a class="headerlink" href="#pystalk.BeanstalkClient.watchlist" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pystalk.BeanstalkError">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pystalk.</span></span><span class="sig-name descname"><span class="pre">BeanstalkError</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.14)"><span class="pre">bytes</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkError" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pystalk.BeanstalkConnectionError">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pystalk.</span></span><span class="sig-name descname"><span class="pre">BeanstalkConnectionError</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">host</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">port</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">err</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkConnectionError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.BeanstalkConnectionError" title="Link to this definition">¶</a></dt>
+<dd><p>Raised when the underlying socket connection to beanstalkd fails.</p>
+<p>Distinguishes connection-level failures (e.g. connection refused, timeout,
+DNS errors) from beanstalk protocol errors. Carries the <code class="docutils literal notranslate"><span class="pre">host</span></code> and
+<cite>port</cite> that were being connected to, and preserves the original socket
+error both on <code class="xref py py-attr docutils literal notranslate"><span class="pre">err</span></code> and via implicit exception chaining (<code class="docutils literal notranslate"><span class="pre">__context__</span></code>).</p>
+<p>This is a subclass of <a class="reference internal" href="#pystalk.BeanstalkError" title="pystalk.BeanstalkError"><code class="xref py py-class docutils literal notranslate"><span class="pre">BeanstalkError</span></code></a> so that existing
+<code class="docutils literal notranslate"><span class="pre">except</span> <span class="pre">BeanstalkError</span></code> callers continue to catch connection failures.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pystalk.client.Job">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pystalk.client.</span></span><span class="sig-name descname"><span class="pre">Job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">job_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">job_data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#Job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.client.Job" title="Link to this definition">¶</a></dt>
+<dd><p>Structure holding a job returned from Beanstalk</p>
+<dl class="field-list simple">
+<dt class="field-odd">Variables<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>job_id</strong> – Opaque identifier for the job (to be passed to <code class="xref py py-func docutils literal notranslate"><span class="pre">BeanstalkClient.release_job()</span></code> or
+<code class="xref py py-func docutils literal notranslate"><span class="pre">BeanstalkClient.stats_job()</span></code>).</p></li>
+<li><p><strong>job_data</strong> – Blob of the data. str if <code class="xref py py-attr docutils literal notranslate"><span class="pre">BeanstalkClient.auto_decode</span></code> is True; otherwise bytes</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="pystalk.client.BeanstalkInsertingProxy">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pystalk.client.</span></span><span class="sig-name descname"><span class="pre">BeanstalkInsertingProxy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">beanstalk_client</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#pystalk.BeanstalkClient" title="pystalk.BeanstalkClient"><span class="pre">BeanstalkClient</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">tube</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkInsertingProxy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.client.BeanstalkInsertingProxy" title="Link to this definition">¶</a></dt>
+<dd><p>Proxy object yielded by <code class="xref py py-func docutils literal notranslate"><span class="pre">BeanstalkClient.using()</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="pystalk.client.BeanstalkInsertingProxy.put_job">
+<span class="sig-name descname"><span class="pre">put_job</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#bytes" title="(in Python v3.14)"><span class="pre">bytes</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">pri</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">65536</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delay</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ttr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">120</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/pystalk/client.html#BeanstalkInsertingProxy.put_job"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pystalk.client.BeanstalkInsertingProxy.put_job" title="Link to this definition">¶</a></dt>
+<dd><p>Method to insert a job into the tube selected with <code class="xref py py-func docutils literal notranslate"><span class="pre">BeanstalkClient.using()</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>Text</em><em> (</em><em>either str which will be encoded as utf-8</em><em>, or </em><em>bytes which are already utf-8</em>) – Job body</p></li>
+<li><p><strong>pri</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Priority for the job</p></li>
+<li><p><strong>delay</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Delay in seconds before the job should be placed on the ready queue</p></li>
+<li><p><strong>ttr</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Time to reserve (how long a worker may work on this job before we assume the worker is blocked
+and give the job to another worker</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+<section id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Link to this heading">¶</a></h1>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="#">Table of Contents</a></h3>
+    <ul>
+<li><a class="reference internal" href="#">pystalk documentation</a><ul>
+<li><a class="reference internal" href="#contents">Contents</a></li>
+<li><a class="reference internal" href="#members">Members</a><ul>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient</span></code></a><ul>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.bury_job"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.bury_job()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.close"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.close()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.delete_job"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.delete_job()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.from_uri"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.from_uri()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.ignore"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.ignore()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.kick_job"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.kick_job()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.kick_jobs"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.kick_jobs()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.list_tubes"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.list_tubes()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.pause_tube"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.pause_tube()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.peek_buried"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.peek_buried()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.peek_buried_iter"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.peek_buried_iter()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.peek_delayed"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.peek_delayed()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.peek_delayed_iter"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.peek_delayed_iter()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.peek_ready"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.peek_ready()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.peek_ready_iter"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.peek_ready_iter()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.ping"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.ping()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.put_job"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.put_job()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.put_job_into"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.put_job_into()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.release_job"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.release_job()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.reserve_iter"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.reserve_iter()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.reserve_job"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.reserve_job()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.stats"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.stats()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.stats_job"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.stats_job()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.stats_tube"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.stats_tube()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.unpause_tube"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.unpause_tube()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.use"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.use()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.using"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.using()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.watch"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.watch()</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkClient.watchlist"><code class="docutils literal notranslate"><span class="pre">BeanstalkClient.watchlist</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pystalk.BeanstalkError"><code class="docutils literal notranslate"><span class="pre">BeanstalkError</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.BeanstalkConnectionError"><code class="docutils literal notranslate"><span class="pre">BeanstalkConnectionError</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.client.Job"><code class="docutils literal notranslate"><span class="pre">Job</span></code></a></li>
+<li><a class="reference internal" href="#pystalk.client.BeanstalkInsertingProxy"><code class="docutils literal notranslate"><span class="pre">BeanstalkInsertingProxy</span></code></a><ul>
+<li><a class="reference internal" href="#pystalk.client.BeanstalkInsertingProxy.put_job"><code class="docutils literal notranslate"><span class="pre">BeanstalkInsertingProxy.put_job()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="CHANGES.html"
+                          title="next chapter">pystalk ChangeLog</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/index.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="CHANGES.html" title="pystalk ChangeLog"
+             >next</a> |</li>
+        <li class="nav-item nav-item-0"><a href="#">pystalk  documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">pystalk documentation</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2016, EasyPost.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.1.0.
+    </div>
+  </body>
+</html>
