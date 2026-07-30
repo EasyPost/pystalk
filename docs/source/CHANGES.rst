@@ -2,9 +2,10 @@
 pystalk ChangeLog
 #################
 
-==========
-unreleased
-==========
+=====
+0.9.0
+=====
+* Drop support for Python < 3.9
 * Fix :py:meth:`pystalk.client.BeanstalkClient.put_job` to compute `put`
   payload length from UTF-8 encoded bytes, preventing `EXPECTED_CRLF` errors
   for non-ASCII job bodies.
@@ -41,9 +42,9 @@ unreleased
 =====
 * More emphatically remove `tests` from distributed packages
 
-====
+=====
 0.6.0
-====
+=====
 * add compatibility for `attrs` 19.2.0 and above
 * drop support for Python 3.3.x
 

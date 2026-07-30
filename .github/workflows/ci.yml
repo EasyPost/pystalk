@@ -2,10 +2,10 @@ name: 'CI'
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
   schedule:
-    - cron: "0 19 * * 1"
+    - cron: '0 19 * * 1'
 
 jobs:
   run-tests:
@@ -36,7 +36,7 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.pythonversion }}
-      - uses: extractions/setup-just@v3
+      - uses: extractions/setup-just@v4
       - name: install dependencies
         run: just install
       - name: lint with flake8
@@ -47,3 +47,19 @@ jobs:
           BEANSTALKD_PATH: ~/beanstalks/beanstalkd
       - name: check mypy
         run: just mypy
+  docs:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: extractions/setup-just@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.14'
+      - name: Generate Docs
+        run: just docs
+      - name: Deploy Docs
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: docs/build/html
