@@ -41,6 +41,15 @@ def test_stats(client, server):
     assert server.received == [b'stats\r\n']
 
 
+def test_put_job_uses_utf8_byte_length_for_non_ascii(client, server):
+    server.responses.append(b'INSERTED 1\r\n')
+
+    status, job_id = client.put_job('caf\u00e9 (coffee)')
+
+    assert (status, job_id) == (b'INSERTED', 1)
+    assert server.received == [b'put 65536 0 120 14\r\ncaf\xc3\xa9 (coffee)\r\n']
+
+
 @pytest.mark.parametrize('uri,expected_host,expected_port', [
     ('beanstalkd://foo', 'foo', 11300),
     ('beanstalk://foo', 'foo', 11300),

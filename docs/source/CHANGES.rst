@@ -2,6 +2,13 @@
 pystalk ChangeLog
 #################
 
+==========
+unreleased
+==========
+* Fix :py:meth:`pystalk.client.BeanstalkClient.put_job` to compute `put`
+  payload length from UTF-8 encoded bytes, preventing `EXPECTED_CRLF` errors
+  for non-ASCII job bodies.
+
 =====
 0.8.1
 =====

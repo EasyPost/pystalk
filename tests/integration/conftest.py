@@ -36,10 +36,24 @@ def beanstalkd(tmpdir_session):
         '-l', '127.0.0.1',
         '-p', str(port)
     ])
-    # give it a moment to start up
-    time.sleep(0.25)
-    if p.poll() is not None:
+
+    # Wait until beanstalkd is actually listening to avoid connection races.
+    started = False
+    for _ in range(50):
+        if p.poll() is not None:
+            break
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+            probe.settimeout(0.1)
+            if probe.connect_ex(('127.0.0.1', port)) == 0:
+                started = True
+                break
+        time.sleep(0.1)
+
+    if not started:
+        p.terminate()
+        p.wait()
         raise ValueError('Could not start beanstalkd')
+
     try:
         yield ('127.0.0.1', port)
     finally:
