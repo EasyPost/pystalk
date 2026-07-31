@@ -39,7 +39,14 @@
   <section id="pystalk-changelog">
 <h1>pystalk ChangeLog<a class="headerlink" href="#pystalk-changelog" title="Link to this heading">¶</a></h1>
 <section id="id1">
-<h2>0.9.0<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h2>
+<h2>0.9.1<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Raise <a class="reference internal" href="index.html#pystalk.BeanstalkConnectionError" title="pystalk.client.BeanstalkConnectionError"><code class="xref py py-class docutils literal notranslate"><span class="pre">pystalk.client.BeanstalkConnectionError</span></code></a> when an established
+connection is closed by beanstalkd.</p></li>
+</ul>
+</section>
+<section id="id2">
+<h2>0.9.0<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h2>
 <ul class="simple">
 <li><p>Drop support for Python &lt; 3.9</p></li>
 <li><p>Fix <code class="xref py py-meth docutils literal notranslate"><span class="pre">pystalk.client.BeanstalkClient.put_job()</span></code> to compute <cite>put</cite>
@@ -47,16 +54,16 @@ payload length from UTF-8 encoded bytes, preventing <cite>EXPECTED_CRLF</cite> e
 for non-ASCII job bodies.</p></li>
 </ul>
 </section>
-<section id="id2">
-<h2>0.8.1<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h2>
+<section id="id3">
+<h2>0.8.1<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h2>
 <ul class="simple">
 <li><p>Fix <code class="xref py py-class docutils literal notranslate"><span class="pre">pystalk.pool.ProductionPool</span></code> failover and backoff behavior so
 connection failures try each available server once before raising
 <code class="xref py py-class docutils literal notranslate"><span class="pre">pystalk.pool.NoMoreClients</span></code>.</p></li>
 </ul>
 </section>
-<section id="id3">
-<h2>0.8.0<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h2>
+<section id="id4">
+<h2>0.8.0<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h2>
 <ul class="simple">
 <li><p>Add <a class="reference internal" href="index.html#pystalk.BeanstalkConnectionError" title="pystalk.client.BeanstalkConnectionError"><code class="xref py py-class docutils literal notranslate"><span class="pre">pystalk.client.BeanstalkConnectionError</span></code></a>, a subclass of
 <a class="reference internal" href="index.html#pystalk.BeanstalkError" title="pystalk.client.BeanstalkError"><code class="xref py py-class docutils literal notranslate"><span class="pre">pystalk.client.BeanstalkError</span></code></a> raised when the underlying socket
@@ -69,70 +76,70 @@ without changing the client’s active connection, current tube, or watchlist.</
 <li><p>Remove the legacy <code class="docutils literal notranslate"><span class="pre">six</span></code> compatibility dependency.</p></li>
 </ul>
 </section>
-<section id="id4">
-<h2>0.7.0<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h2>
+<section id="id5">
+<h2>0.7.0<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h2>
 <ul class="simple">
 <li><p>Drop support for Python &lt; 3.6</p></li>
 <li><p>Add <cite>pystalk.pool.ProductionPool</cite></p></li>
 <li><p>Add some <cite>typing</cite> annotations</p></li>
 </ul>
 </section>
-<section id="id5">
-<h2>0.6.1<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h2>
+<section id="id6">
+<h2>0.6.1<a class="headerlink" href="#id6" title="Link to this heading">¶</a></h2>
 <ul class="simple">
 <li><p>More emphatically remove <cite>tests</cite> from distributed packages</p></li>
 </ul>
 </section>
-<section id="id6">
-<h2>0.6.0<a class="headerlink" href="#id6" title="Link to this heading">¶</a></h2>
+<section id="id7">
+<h2>0.6.0<a class="headerlink" href="#id7" title="Link to this heading">¶</a></h2>
 <ul class="simple">
 <li><p>add compatibility for <cite>attrs</cite> 19.2.0 and above</p></li>
 <li><p>drop support for Python 3.3.x</p></li>
 </ul>
 </section>
-<section id="id7">
-<h2>0.5.1<a class="headerlink" href="#id7" title="Link to this heading">¶</a></h2>
+<section id="id8">
+<h2>0.5.1<a class="headerlink" href="#id8" title="Link to this heading">¶</a></h2>
 <ul class="simple">
 <li><p>attrs changed a kwarg from <cite>convert</cite> to <cite>converter</cite></p></li>
 </ul>
 </section>
-<section id="id8">
-<h2>0.5.0<a class="headerlink" href="#id8" title="Link to this heading">¶</a></h2>
+<section id="id9">
+<h2>0.5.0<a class="headerlink" href="#id9" title="Link to this heading">¶</a></h2>
 <ul class="simple">
 <li><p>Move tests from CircleCI to Travis-CI</p></li>
 <li><p>Add <code class="xref py py-func docutils literal notranslate"><span class="pre">pystalk.client.BeanstalkClient.from_uri()</span></code> to create a <cite>BeanstalkClient</cite> instance from a URI/URL</p></li>
 </ul>
 </section>
-<section id="id9">
-<h2>0.4.0<a class="headerlink" href="#id9" title="Link to this heading">¶</a></h2>
+<section id="id10">
+<h2>0.4.0<a class="headerlink" href="#id10" title="Link to this heading">¶</a></h2>
 <ul class="simple">
 <li><p>Add <code class="xref py py-func docutils literal notranslate"><span class="pre">pystalk.client.BeanstalkClient.peek_ready_iter()</span></code> mirroring <cite>peek_delayed_iter</cite> and <cite>peek_buried_iter</cite></p></li>
 <li><p>Add <code class="xref py py-func docutils literal notranslate"><span class="pre">pystalk.client.BeanstalkClient.kick_job()</span></code> to kick a single job by ID</p></li>
 </ul>
 </section>
-<section id="id10">
-<h2>0.3.1<a class="headerlink" href="#id10" title="Link to this heading">¶</a></h2>
+<section id="id11">
+<h2>0.3.1<a class="headerlink" href="#id11" title="Link to this heading">¶</a></h2>
 <ul class="simple">
 <li><p>Fix crash when setting <cite>socket_timeout</cite> to <cite>None</cite></p></li>
 </ul>
 </section>
-<section id="id11">
-<h2>0.3.0<a class="headerlink" href="#id11" title="Link to this heading">¶</a></h2>
+<section id="id12">
+<h2>0.3.0<a class="headerlink" href="#id12" title="Link to this heading">¶</a></h2>
 <ul class="simple">
 <li><p>Add <code class="xref py py-func docutils literal notranslate"><span class="pre">pystalk.client.BeanstalkClient.using()</span></code> and <code class="xref py py-func docutils literal notranslate"><span class="pre">pystalk.client.BeanstalkClient.put_job_into()</span></code> as clearer APIs for inserting jobs</p></li>
 <li><p>Re-establish USE and WATCH on close/re-open</p></li>
 </ul>
 </section>
-<section id="id12">
-<h2>0.2.1<a class="headerlink" href="#id12" title="Link to this heading">¶</a></h2>
+<section id="id13">
+<h2>0.2.1<a class="headerlink" href="#id13" title="Link to this heading">¶</a></h2>
 <ul class="simple">
 <li><p>Add <code class="xref py py-func docutils literal notranslate"><span class="pre">pystalk.client.BeanstalkClient.close()</span></code> method to the <a class="reference internal" href="index.html#pystalk.BeanstalkClient" title="pystalk.client.BeanstalkClient"><code class="xref py py-class docutils literal notranslate"><span class="pre">pystalk.client.BeanstalkClient</span></code></a> class</p></li>
 <li><p>Add a plethora of new and fixed docstrings</p></li>
 <li><p>Start hosting docs at <a class="reference external" href="http://pystalk.readthedocs.io">http://pystalk.readthedocs.io</a></p></li>
 </ul>
 </section>
-<section id="id13">
-<h2>0.2<a class="headerlink" href="#id13" title="Link to this heading">¶</a></h2>
+<section id="id14">
+<h2>0.2<a class="headerlink" href="#id14" title="Link to this heading">¶</a></h2>
 <ul class="simple">
 <li><p>Initial release</p></li>
 </ul>
@@ -150,19 +157,20 @@ without changing the client’s active connection, current tube, or watchlist.</
     <h3><a href="index.html">Table of Contents</a></h3>
     <ul>
 <li><a class="reference internal" href="#">pystalk ChangeLog</a><ul>
-<li><a class="reference internal" href="#id1">0.9.0</a></li>
-<li><a class="reference internal" href="#id2">0.8.1</a></li>
-<li><a class="reference internal" href="#id3">0.8.0</a></li>
-<li><a class="reference internal" href="#id4">0.7.0</a></li>
-<li><a class="reference internal" href="#id5">0.6.1</a></li>
-<li><a class="reference internal" href="#id6">0.6.0</a></li>
-<li><a class="reference internal" href="#id7">0.5.1</a></li>
-<li><a class="reference internal" href="#id8">0.5.0</a></li>
-<li><a class="reference internal" href="#id9">0.4.0</a></li>
-<li><a class="reference internal" href="#id10">0.3.1</a></li>
-<li><a class="reference internal" href="#id11">0.3.0</a></li>
-<li><a class="reference internal" href="#id12">0.2.1</a></li>
-<li><a class="reference internal" href="#id13">0.2</a></li>
+<li><a class="reference internal" href="#id1">0.9.1</a></li>
+<li><a class="reference internal" href="#id2">0.9.0</a></li>
+<li><a class="reference internal" href="#id3">0.8.1</a></li>
+<li><a class="reference internal" href="#id4">0.8.0</a></li>
+<li><a class="reference internal" href="#id5">0.7.0</a></li>
+<li><a class="reference internal" href="#id6">0.6.1</a></li>
+<li><a class="reference internal" href="#id7">0.6.0</a></li>
+<li><a class="reference internal" href="#id8">0.5.1</a></li>
+<li><a class="reference internal" href="#id9">0.5.0</a></li>
+<li><a class="reference internal" href="#id10">0.4.0</a></li>
+<li><a class="reference internal" href="#id11">0.3.1</a></li>
+<li><a class="reference internal" href="#id12">0.3.0</a></li>
+<li><a class="reference internal" href="#id13">0.2.1</a></li>
+<li><a class="reference internal" href="#id14">0.2</a></li>
 </ul>
 </li>
 </ul>
