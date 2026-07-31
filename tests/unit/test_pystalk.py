@@ -41,6 +41,17 @@ def test_stats(client, server):
     assert server.received == [b'stats\r\n']
 
 
+def test_reserve_raises_connection_error_when_server_closes_connection(client, server):
+    server.responses.append(b'')
+
+    with pytest.raises(pystalk.BeanstalkConnectionError) as exc_info:
+        client.reserve_job(0)
+
+    assert isinstance(exc_info.value.err, ConnectionResetError)
+    assert exc_info.value.host == 'pystalk.example.com'
+    assert exc_info.value.port == 0
+
+
 def test_put_job_uses_utf8_byte_length_for_non_ascii(client, server):
     server.responses.append(b'INSERTED 1\r\n')
 

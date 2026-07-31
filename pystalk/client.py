@@ -225,13 +225,18 @@ class BeanstalkClient(object):
     def _sock_ctx(self):
         yield self._socket
 
+    def _receive_from_socket(self, sock, size):
+        message = sock.recv(size)
+        if not message:
+            connection_error = ConnectionResetError('Connection closed by beanstalkd')
+            raise BeanstalkConnectionError(self.host, self.port, connection_error) from connection_error
+        return message
+
     def _receive_data_with_prefix(self, prefix, sock):
         buf = b''
         target_len = len(prefix) + 28
-        while b'\r\n' not in buf:
-            message = sock.recv(target_len - len(buf))
-            if not message:
-                break
+        while b'\r\n' not in buf and len(buf) < target_len:
+            message = self._receive_from_socket(sock, target_len - len(buf))
             buf += message
         if b' ' not in buf:
             error = buf.rstrip()
@@ -244,10 +249,8 @@ class BeanstalkClient(object):
     def _receive_id_and_data_with_prefix(self, prefix, sock):
         buf = b''
         target_len = len(prefix) + 28
-        while b'\r\n' not in buf:
-            message = sock.recv(target_len - len(buf))
-            if not message:
-                break
+        while b'\r\n' not in buf and len(buf) < target_len:
+            message = self._receive_from_socket(sock, target_len - len(buf))
             buf += message
         if b' ' not in buf:
             error = buf.rstrip()
@@ -260,15 +263,13 @@ class BeanstalkClient(object):
 
     def _receive_data(self, sock, initial=None):
         if initial is None:
-            initial = sock.recv(12)
+            initial = self._receive_from_socket(sock, 12)
         byte_length, rest = initial.split(b'\r\n', 1)
         byte_length = int(byte_length) + 2
         buf = [rest]
         bytes_read = len(rest)
         while bytes_read < byte_length:
-            message = sock.recv(min(4096, byte_length - bytes_read))
-            if not message:
-                break
+            message = self._receive_from_socket(sock, min(4096, byte_length - bytes_read))
             bytes_read += len(message)
             buf.append(message)
         bytez = b''.join(buf)[:-2]
@@ -282,7 +283,7 @@ class BeanstalkClient(object):
         return status, int(gid)
 
     def _receive_name(self, sock):
-        message = sock.recv(1024)
+        message = self._receive_from_socket(sock, 1024)
         if b' ' in message:
             status, rest = message.split(b' ', 1)
             return status, rest.rstrip()
@@ -290,7 +291,7 @@ class BeanstalkClient(object):
             raise BeanstalkError(message.rstrip())
 
     def _receive_word(self, sock, *expected_words):
-        message = sock.recv(1024).rstrip()
+        message = self._receive_from_socket(sock, 1024).rstrip()
         if message not in expected_words:
             raise BeanstalkError(message)
         return message
