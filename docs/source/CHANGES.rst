@@ -3,6 +3,12 @@ pystalk ChangeLog
 #################
 
 =====
+0.9.1
+=====
+* Raise :py:class:`pystalk.client.BeanstalkConnectionError` when an established
+  connection is closed by beanstalkd.
+
+=====
 0.9.0
 =====
 * Drop support for Python < 3.9
