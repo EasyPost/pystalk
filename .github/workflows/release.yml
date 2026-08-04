@@ -14,17 +14,55 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: extractions/setup-just@v3
       - uses: actions/setup-python@v7
         with:
           python-version: '3.14'
+      - name: Check if version changed
+        id: version-check
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          current_version=$(python -c 'import pystalk; print(pystalk.__version__)')
+          expected_tag="pystalk-$current_version"
+          previous_tag=$(git describe --tags --match 'pystalk-*' --abbrev=0 HEAD^ 2>/dev/null || true)
+          previous_version=${previous_tag#pystalk-}
+
+          echo "Current version: $current_version"
+          echo "Previous released version: ${previous_version:-none}"
+
+          if [[ "$GITHUB_EVENT_NAME" == "release" && "$RELEASE_TAG" != "$expected_tag" ]]; then
+            echo "Release tag $RELEASE_TAG does not match code version $expected_tag"
+            exit 1
+          fi
+
+          if [[ "$current_version" == "$previous_version" ]]; then
+            echo "Version unchanged ($current_version) - skipping publish"
+            echo "VERSION_CHANGED=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]] \
+              && git rev-parse --quiet --verify "refs/tags/$expected_tag" >/dev/null; then
+            echo "Version $current_version is already tagged - skipping publish"
+            echo "VERSION_CHANGED=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Version changed from ${previous_version:-none} to $current_version"
+          echo "VERSION_CHANGED=true" >> "$GITHUB_OUTPUT"
       - name: Build package
+        if: steps.version-check.outputs.VERSION_CHANGED == 'true'
         run: just install build
       - name: Publish to PyPi
+        if: steps.version-check.outputs.VERSION_CHANGED == 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
       - name: Upload assets to release
+        if: steps.version-check.outputs.VERSION_CHANGED == 'true'
         uses: AButler/upload-release-assets@v3.0.1
         with:
           files: 'dist/*'
