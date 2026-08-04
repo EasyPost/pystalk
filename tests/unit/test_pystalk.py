@@ -2,6 +2,7 @@ import pystalk
 
 import pytest
 import socket
+from unittest.mock import Mock
 
 
 class MockBeanstalkServerSocket(object):
@@ -99,8 +100,26 @@ def test_ping_connects_without_mutating_client_state(monkeypatch, client, server
     assert client._watchlist == {'jobs', 'urgent'}
 
 
-def test_ping_raises_connection_error_for_unreachable_server(monkeypatch):
-    connection_error = ConnectionRefusedError('refused')
+def test_ping_on_fresh_client_does_not_install_probe_socket(monkeypatch):
+    ping_socket = MockBeanstalkServerSocket()
+    create_connection = Mock(return_value=ping_socket)
+    monkeypatch.setattr('pystalk.client.socket.create_connection', create_connection)
+    client = pystalk.BeanstalkClient('pystalk.example.com', 11301, socket_timeout=2.5)
+
+    assert client.ping() is True
+
+    create_connection.assert_called_once_with(('pystalk.example.com', 11301), timeout=2.5)
+    assert ping_socket.closed is True
+    assert client.socket is None
+
+
+@pytest.mark.parametrize('connection_error', [
+    ConnectionRefusedError('refused'),
+    socket.timeout('timed out'),
+    socket.error('socket error'),
+    socket.gaierror(-2, 'Name or service not known'),
+])
+def test_ping_raises_connection_error_for_unreachable_server(monkeypatch, connection_error):
 
     def refuse_connection(*args, **kwargs):
         raise connection_error
@@ -111,7 +130,11 @@ def test_ping_raises_connection_error_for_unreachable_server(monkeypatch):
     with pytest.raises(pystalk.BeanstalkConnectionError) as exc_info:
         client.ping()
 
+    assert exc_info.value.host == 'unreachable.example.com'
+    assert exc_info.value.port == 11300
     assert exc_info.value.err is connection_error
+    assert exc_info.value.__context__ is connection_error
+    assert client.socket is None
     assert client.current_tube == 'default'
     assert client._watchlist == {'default'}
 
@@ -143,12 +166,10 @@ def test_connection_error_is_wrapped(monkeypatch, raised_error):
     assert ei.value.err is raised_error
 
 
-def test_connection_error_is_a_beanstalk_error(monkeypatch):
-    # Success criterion: existing `except BeanstalkError` still catches it
-    def boom(*args, **kwargs):
-        raise pystalk.BeanstalkError('nope')
-    monkeypatch.setattr('pystalk.client.socket.create_connection', boom)
-    client = pystalk.BeanstalkClient('h', 1)
-    client.socket = None
-    with pytest.raises(pystalk.BeanstalkError):
-        _ = client._socket
+def test_connection_error_is_a_beanstalk_error():
+    connection_error = pystalk.BeanstalkConnectionError('host', 11300, ConnectionRefusedError('refused'))
+
+    with pytest.raises(pystalk.BeanstalkError) as exc_info:
+        raise connection_error
+
+    assert exc_info.value is connection_error

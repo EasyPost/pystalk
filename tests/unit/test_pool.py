@@ -58,6 +58,38 @@ def test_all_clients_are_attempted_once_with_zero_backoff():
     second_client.close.assert_called_once_with()
 
 
+def test_all_down_clients_are_not_retried_until_backoff_expires(monkeypatch):
+    now = [0]
+    monkeypatch.setattr(pool, '_get_time', lambda: now[0])
+    calls = []
+    first_client = make_client('first', calls)
+
+    def first_put_job(**kwargs):
+        calls.append('first')
+        if first_client.put_job.call_count == 1:
+            raise socket.error('disconnected')
+        return 123
+
+    first_client.put_job.side_effect = first_put_job
+    second_client = make_client('second', calls, error=socket.error('disconnected'))
+    production_pool = ProductionPool(
+        [first_client, second_client], initial_shuffle=False, round_robin=True, backoff_time=10,
+    )
+
+    with pytest.raises(NoMoreClients):
+        production_pool.put_job(b'first')
+    assert calls == ['first', 'second']
+
+    now[0] = 9.999
+    with pytest.raises(NoMoreClients):
+        production_pool.put_job(b'during-backoff')
+    assert calls == ['first', 'second']
+
+    now[0] = 10
+    assert production_pool.put_job(b'after-backoff') == 123
+    assert calls == ['first', 'second', 'first']
+
+
 def test_tube_activation_failure_fails_over_to_correct_client():
     calls = []
     bad_client = make_client('bad', calls)
@@ -95,8 +127,12 @@ def test_flapping_client_is_retried_after_backoff(monkeypatch):
     )
 
     assert production_pool.put_job(b'first') == 123
+    now[0] = 9.999
+    assert production_pool.put_job(b'during-backoff') == 123
+    assert flapping_client.put_job.call_count == 1
+
     now[0] = 10
-    assert production_pool.put_job(b'second') == 456
+    assert production_pool.put_job(b'after-backoff') == 456
 
     assert flapping_client.put_job.call_count == 2
     flapping_client.close.assert_called_once_with()
