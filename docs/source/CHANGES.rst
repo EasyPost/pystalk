@@ -3,6 +3,12 @@ pystalk ChangeLog
 #################
 
 =====
+0.9.2
+=====
+* Expand regression coverage for connection error wrapping, connectivity
+  prechecks, and production pool failover and backoff behavior.
+
+=====
 0.9.1
 =====
 * Raise :py:class:`pystalk.client.BeanstalkConnectionError` when an established
