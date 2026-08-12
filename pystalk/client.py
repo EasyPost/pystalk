@@ -5,7 +5,7 @@ import attr
 import socket
 import yaml
 import re
-from typing import Optional, Union
+from typing import Any, Dict, Optional, Union
 
 
 @attr.s(frozen=True)
@@ -22,6 +22,32 @@ class Job(object):
     job_id = attr.ib(validator=attr.validators.instance_of(int))
 
     job_data = attr.ib()
+
+
+@attr.s(frozen=True, slots=True)
+class JobReference(object):
+    """Serializable identity for a job on a specific beanstalkd server."""
+
+    server_id: str = attr.ib(validator=attr.validators.instance_of(str))
+    job_id: int = attr.ib(converter=int)
+
+    def to_dict(self) -> Dict[str, Union[str, int]]:
+        return {
+            'server_id': self.server_id,
+            'job_id': self.job_id,
+        }
+
+    @classmethod
+    def from_dict(cls, value: Dict[str, Any]) -> 'JobReference':
+        if not isinstance(value, dict):
+            raise TypeError('Job reference must be a dictionary')
+        try:
+            return cls(
+                server_id=value['server_id'],
+                job_id=value['job_id'],
+            )
+        except KeyError as exc:
+            raise ValueError('Job reference is missing {0}'.format(exc.args[0])) from exc
 
 
 @attr.s(hash=True, eq=True, init=False)
@@ -105,6 +131,13 @@ class BeanstalkInsertingProxy(object):
         self.beanstalk_client.use(self.tube)
         return self.beanstalk_client.put_job(data=data, pri=pri, delay=delay, ttr=ttr)
 
+    def put_job_with_reference(
+        self, data: Union[str, bytes], pri: int = 65536, delay: int = 0, ttr: int = 120
+    ) -> JobReference:
+        """Insert a job and return its server-qualified reference."""
+        self.beanstalk_client.use(self.tube)
+        return self.beanstalk_client.put_job_with_reference(data=data, pri=pri, delay=delay, ttr=ttr)
+
 
 class BeanstalkClient(object):
     """
@@ -128,12 +161,13 @@ class BeanstalkClient(object):
          :func:`reserve_job()` will cause errors!
     """
     def __init__(self, host: str, port: int = 11300, socket_timeout: Optional[float] = None,
-                 auto_decode: bool = False):
+                 auto_decode: bool = False, server_id: Optional[str] = None):
         """
         Construct a synchronous Beanstalk Client. Does not connect!
         """
         self.host = host
         self.port = port
+        self.server_id = server_id or '{0}:{1}'.format(host, port)
         self.socket_timeout = socket_timeout
         self._reset_state()
         self.desired_tube = 'default'
@@ -141,7 +175,7 @@ class BeanstalkClient(object):
         self.auto_decode = auto_decode
 
     @classmethod
-    def from_uri(cls, uri, socket_timeout=None, auto_decode=False):
+    def from_uri(cls, uri, socket_timeout=None, auto_decode=False, server_id=None):
         """
         Construct a synchronous Beanstalk Client from a URI.
 
@@ -163,7 +197,7 @@ class BeanstalkClient(object):
             host = parts.netloc
             port = 11300
         port = int(port)
-        return cls(host, port, socket_timeout=socket_timeout, auto_decode=auto_decode)
+        return cls(host, port, socket_timeout=socket_timeout, auto_decode=auto_decode, server_id=server_id)
 
     def _reset_state(self):
         self._watchlist = set(['default'])
@@ -363,6 +397,13 @@ class BeanstalkClient(object):
             self._send_message(message, socket)
             return self._receive_id(socket)
 
+    def put_job_with_reference(
+        self, data: Union[str, bytes], pri: int = 65536, delay: int = 0, ttr: int = 120
+    ) -> JobReference:
+        """Insert a job and return an identity qualified by this client's server."""
+        _, job_id = self.put_job(data=data, pri=pri, delay=delay, ttr=ttr)
+        return JobReference(server_id=self.server_id, job_id=job_id)
+
     def put_job_into(self, tube_name: str, data: Union[str, bytes], pri: int = 65536, delay: int = 0, ttr: int = 120):
         """Insert a new job into a specific queue. Wrapper around :func:`put_job`.
 
@@ -388,6 +429,13 @@ class BeanstalkClient(object):
         """
         with self.using(tube_name) as inserter:
             return inserter.put_job(data=data, pri=pri, delay=delay, ttr=ttr)
+
+    def put_job_into_with_reference(
+        self, tube_name: str, data: Union[str, bytes], pri: int = 65536, delay: int = 0, ttr: int = 120
+    ) -> JobReference:
+        """Insert a job into a tube and return its server-qualified reference."""
+        with self.using(tube_name) as inserter:
+            return inserter.put_job_with_reference(data=data, pri=pri, delay=delay, ttr=ttr)
 
     @property
     def watchlist(self):
