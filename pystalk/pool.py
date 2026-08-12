@@ -7,7 +7,7 @@ import logging
 
 import attr
 
-from .client import BeanstalkClient, BeanstalkConnectionError, BeanstalkError
+from .client import BeanstalkClient, BeanstalkConnectionError, BeanstalkError, JobReference
 
 
 RETRIABLE_ERRORS = ('INTERNAL_ERROR', 'OUT_OF_MEMORY')
@@ -172,6 +172,14 @@ class ProductionPool(object):
             lambda client: client.put_job(data=data, pri=pri, delay=delay, ttr=120)
         )
 
+    def put_job_with_reference(
+        self, data: Union[str, bytes], pri: int = 65536, delay: int = 0, ttr: int = 120
+    ) -> JobReference:
+        """Insert a job and return a reference identifying the selected server."""
+        return self._attempt_on_all_clients(
+            lambda client: client.put_job_with_reference(data=data, pri=pri, delay=delay, ttr=ttr)
+        )
+
     def put_job_into(self, tube_name: str, data: Union[str, bytes], pri: int = 65536,
                      delay: int = 0, ttr: int = 120):
         """Insert a new job into a specific queue. Wrapper around :func:`put_job`.
@@ -198,4 +206,15 @@ class ProductionPool(object):
         """
         return self._attempt_on_all_clients(
             lambda client: client.put_job_into(tube_name=tube_name, data=data, pri=pri, delay=delay, ttr=120)
+        )
+
+    def put_job_into_with_reference(
+        self, tube_name: str, data: Union[str, bytes], pri: int = 65536,
+        delay: int = 0, ttr: int = 120
+    ) -> JobReference:
+        """Insert into a tube and return a reference identifying the selected server."""
+        return self._attempt_on_all_clients(
+            lambda client: client.put_job_into_with_reference(
+                tube_name=tube_name, data=data, pri=pri, delay=delay, ttr=ttr
+            )
         )

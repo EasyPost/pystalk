@@ -63,6 +63,18 @@ with client.using("some_tube") as inserter:
 client.put_job_into("some_tube", "some message")
 ```
 
+When a caller needs to identify the inserted job later, use the additive reference-returning variants. A
+`JobReference` includes a server ID because integer job IDs are only unique within one beanstalkd instance:
+
+```python
+reference = client.put_job_into_with_reference("some_tube", "some message")
+serialized_reference = reference.to_dict()
+```
+
+The server ID defaults to `host:port`. Pass a stable `server_id` to `BeanstalkClient` or `from_uri` when producers and
+consumers use different aliases for the same server. Do not use a load-balanced endpoint for references unless it maps
+one-to-one to a beanstalkd server.
+
 ### Consuming All Available Jobs
 
 The following script will walk through all currently-READY jobs and then exit:

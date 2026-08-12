@@ -2,6 +2,11 @@
 pystalk ChangeLog
 #################
 
+======
+0.10.0
+======
+* Add server-qualified job references without changing existing insertion APIs.
+
 =====
 0.9.1
 =====

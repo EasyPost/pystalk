@@ -3,7 +3,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from pystalk import BeanstalkConnectionError
+from pystalk import BeanstalkConnectionError, JobReference
 from pystalk import pool
 from pystalk.pool import ClientRecord, NoMoreClients, ProductionPool
 
@@ -40,6 +40,38 @@ def test_connection_error_fails_over_to_next_client():
     assert production_pool.put_job(b'job') == 123
     assert calls == ['bad', 'good']
     bad_client.close.assert_called_once_with()
+
+
+def test_job_reference_identifies_client_selected_after_failover():
+    calls = []
+    connection_error = BeanstalkConnectionError('bad', 11300, ConnectionRefusedError('refused'))
+    bad_client = make_client('bad', calls)
+    bad_client.put_job_with_reference.side_effect = connection_error
+    good_client = make_client('good', calls)
+    expected_reference = JobReference('good-beanstalk', 42)
+    good_client.put_job_with_reference.return_value = expected_reference
+    production_pool = ProductionPool([bad_client, good_client], initial_shuffle=False, round_robin=False)
+
+    reference = production_pool.put_job_with_reference(b'job', pri=10, delay=20, ttr=30)
+
+    assert reference == expected_reference
+    bad_client.put_job_with_reference.assert_called_once_with(data=b'job', pri=10, delay=20, ttr=30)
+    good_client.put_job_with_reference.assert_called_once_with(data=b'job', pri=10, delay=20, ttr=30)
+
+
+def test_put_job_into_with_reference_delegates_to_selected_client():
+    calls = []
+    client = make_client('client', calls)
+    expected_reference = JobReference('client-beanstalk', 42)
+    client.put_job_into_with_reference.return_value = expected_reference
+    production_pool = ProductionPool([client], initial_shuffle=False)
+
+    reference = production_pool.put_job_into_with_reference('jobs', b'job', pri=10, delay=20, ttr=30)
+
+    assert reference == expected_reference
+    client.put_job_into_with_reference.assert_called_once_with(
+        tube_name='jobs', data=b'job', pri=10, delay=20, ttr=30
+    )
 
 
 def test_all_clients_are_attempted_once_with_zero_backoff():

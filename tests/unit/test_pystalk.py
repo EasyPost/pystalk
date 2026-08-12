@@ -62,6 +62,44 @@ def test_put_job_uses_utf8_byte_length_for_non_ascii(client, server):
     assert server.received == [b'put 65536 0 120 14\r\ncaf\xc3\xa9 (coffee)\r\n']
 
 
+def test_put_job_with_reference_qualifies_job_id_with_server(client, server):
+    server.responses.append(b'INSERTED 42\r\n')
+
+    reference = client.put_job_with_reference('job')
+
+    assert reference == pystalk.JobReference('pystalk.example.com:0', 42)
+    assert server.received == [b'put 65536 0 120 3\r\njob\r\n']
+
+
+def test_put_job_into_with_reference_uses_selected_tube(client, monkeypatch):
+    client.current_tube = 'jobs'
+    put_job = Mock(return_value=(b'INSERTED', 42))
+    monkeypatch.setattr(client, 'put_job', put_job)
+
+    reference = client.put_job_into_with_reference('jobs', 'job', pri=10, delay=20, ttr=30)
+
+    assert reference == pystalk.JobReference('pystalk.example.com:0', 42)
+    put_job.assert_called_once_with(data='job', pri=10, delay=20, ttr=30)
+
+
+def test_job_reference_round_trips_through_dictionary():
+    reference = pystalk.JobReference('primary-beanstalk', 42)
+
+    assert pystalk.JobReference.from_dict(reference.to_dict()) == reference
+
+
+@pytest.mark.parametrize(
+    'value, exception_type, message',
+    [
+        (None, TypeError, 'Job reference must be a dictionary'),
+        ({'server_id': 'primary-beanstalk'}, ValueError, 'Job reference is missing job_id'),
+    ]
+)
+def test_job_reference_rejects_invalid_dictionary(value, exception_type, message):
+    with pytest.raises(exception_type, match=message):
+        pystalk.JobReference.from_dict(value)
+
+
 @pytest.mark.parametrize('uri,expected_host,expected_port', [
     ('beanstalkd://foo', 'foo', 11300),
     ('beanstalk://foo', 'foo', 11300),
@@ -75,6 +113,15 @@ def test_from_uri(uri, expected_host, expected_port):
     client = pystalk.BeanstalkClient.from_uri(uri)
     assert client.host == expected_host
     assert client.port == expected_port
+
+
+def test_client_accepts_stable_server_id_for_job_references():
+    client = pystalk.BeanstalkClient.from_uri(
+        'beanstalk://alias.example.com:11300',
+        server_id='primary-beanstalk',
+    )
+
+    assert client.server_id == 'primary-beanstalk'
 
 
 @pytest.mark.parametrize('uri', [
