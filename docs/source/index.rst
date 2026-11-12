@@ -26,6 +26,14 @@ Members
    :members:
    :undoc-members:
 
+.. autoclass:: pystalk.ProductionPool
+   :members:
+   :undoc-members:
+
+.. autofunction:: pystalk.connect_beanstalk
+
+.. autofunction:: pystalk.parse_beanstalk_urls
+
 .. autoclass:: pystalk.BeanstalkError
    :members:
 
