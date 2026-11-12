@@ -103,6 +103,34 @@ pool.put_job_into('some tube', 'some job')
 The Pool **only** supports the `put_job` and `put_job_into` methods and makes no fairness guarantees; you should not use
 it for consumption.
 
+#### Connecting from `BEANSTALKD_URLS`
+
+If you keep your beanstalkd servers in a comma-separated environment variable (conventionally `BEANSTALKD_URLS`), you
+can build a pool in one call:
+
+```python
+from pystalk import connect_beanstalk
+
+pool = connect_beanstalk()  # reads BEANSTALKD_URLS
+pool.put_job_into('some tube', 'some job')
+```
+
+Entries may be bare `host:port` pairs or full `beanstalk://`/`beanstalkd://` URIs (IPv6 literals like `[::1]:11300`
+work too); surrounding whitespace and quotes are stripped. You can also pass URLs explicitly —
+`connect_beanstalk("host1:11300,host2:11300")` or a list — or use `ProductionPool.from_env()`. Raises `ValueError`
+if the environment variable is missing or yields no URLs. Options and defaults:
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `env_var` | `'BEANSTALKD_URLS'` | Environment variable to read when no URLs are given |
+| `socket_timeout` | `3.0` | Socket timeout set on all constructed clients |
+| `connect_timeout` | `1.0` | Connect timeout set on all constructed clients |
+| `backoff_time` | `10.0` | Seconds after an error before a server is reused |
+| `round_robin` | `True` | Rotate servers on every insertion |
+| `initial_shuffle` | `True` | Randomly shuffle clients at initialization |
+| `auto_decode` | `False` | Decode job bodies as UTF-8 |
+| `environ` | `os.environ` | Mapping to read environment variables from |
+
 ### Consuming From Multiple Job Servers
 
 The following will reserve jobs from a group of Beanstalk servers, fairly rotating between them.
