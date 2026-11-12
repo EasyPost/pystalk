@@ -41,9 +41,9 @@ class BeanstalkConnectionError(BeanstalkError):
     Raised when the underlying socket connection to beanstalkd fails.
 
     Distinguishes connection-level failures (e.g. connection refused, timeout,
-    DNS errors) from beanstalk protocol errors. Carries the ``host`` and
-    `port` that were being connected to, and preserves the original socket
-    error both on :attr:`err` and via implicit exception chaining (``__context__``).
+    DNS errors, broken pipe, or connection reset) from beanstalk protocol errors.
+    Carries the ``host`` and ``port`` that were being connected to, and preserves
+    the original socket error both on :attr:`err` and via exception chaining.
 
     This is a subclass of :class:`BeanstalkError` so that existing
     ``except BeanstalkError`` callers continue to catch connection failures.
@@ -75,7 +75,7 @@ def catch_and_raise(*errors, raise_as=BeanstalkConnectionError):
             try:
                 return func(self, *args, **kwargs)
             except errors as e:
-                raise raise_as(self.host, self.port, e)
+                raise raise_as(self.host, self.port, e) from e
         return wrapper
     return decorator
 
@@ -118,6 +118,8 @@ class BeanstalkClient(object):
     :type socket_timeout: float
     :param auto_decode: Attempt to decode job bodies as UTF-8 when reading them
     :type auto_decode: bool
+    :param connect_timeout: Timeout to use when establishing a socket connection. Defaults to ``socket_timeout``.
+    :type connect_timeout: float
 
     Doesn't provide any fanciness for writing consumers or producers. Just lets you invoke methods to call beanstalk
     functions.
@@ -128,20 +130,22 @@ class BeanstalkClient(object):
          :func:`reserve_job()` will cause errors!
     """
     def __init__(self, host: str, port: int = 11300, socket_timeout: Optional[float] = None,
-                 auto_decode: bool = False):
+                 auto_decode: bool = False, connect_timeout: Optional[float] = None):
         """
         Construct a synchronous Beanstalk Client. Does not connect!
         """
         self.host = host
         self.port = port
         self.socket_timeout = socket_timeout
+        self.connect_timeout = connect_timeout
         self._reset_state()
         self.desired_tube = 'default'
         self.desired_watchlist = set(['default'])
         self.auto_decode = auto_decode
 
     @classmethod
-    def from_uri(cls, uri, socket_timeout=None, auto_decode=False):
+    def from_uri(cls, uri: str, socket_timeout: Optional[float] = None, auto_decode: bool = False,
+                 connect_timeout: Optional[float] = None) -> 'BeanstalkClient':
         """
         Construct a synchronous Beanstalk Client from a URI.
 
@@ -155,21 +159,48 @@ class BeanstalkClient(object):
         ipv6_md = re.match(r'^\[([0-9a-fA-F:]+)\](:[0-9]+)?$', parts.netloc)
         if ipv6_md:
             host = ipv6_md.group(1)
-            port = ipv6_md.group(2) or '11300'
-            port = port.lstrip(':')
+            port_str = (ipv6_md.group(2) or '11300').lstrip(':')
+            port = int(port_str)
         elif ':' in parts.netloc:
-            host, port = parts.netloc.rsplit(':', 1)
+            host, port_str = parts.netloc.rsplit(':', 1)
+            port = int(port_str)
         else:
             host = parts.netloc
             port = 11300
-        port = int(port)
-        return cls(host, port, socket_timeout=socket_timeout, auto_decode=auto_decode)
+        return cls(
+            host,
+            port,
+            socket_timeout=socket_timeout,
+            auto_decode=auto_decode,
+            connect_timeout=connect_timeout,
+        )
 
     def _reset_state(self):
         self._watchlist = set(['default'])
         self.current_tube = 'default'
         self.initial_watch = True
         self.socket = None
+
+    @property
+    def _effective_connect_timeout(self) -> Optional[float]:
+        if self.connect_timeout is not None:
+            return self.connect_timeout
+        return self.socket_timeout
+
+    @staticmethod
+    def _close_socket(sock) -> None:
+        if sock is not None:
+            try:
+                sock.close()
+            except Exception:
+                pass
+
+    def _reset_connection(self, sock=None) -> None:
+        current_sock = self.socket
+        self._reset_state()
+        self._close_socket(current_sock)
+        if sock is not current_sock:
+            self._close_socket(sock)
 
     def __repr__(self):
         return '{0}({1!r}, {2!r})'.format(self.__class__.__name__, self.host, self.port)  # pragma: no cover
@@ -179,17 +210,27 @@ class BeanstalkClient(object):
             repr(self), self._watchlist, self.current_tube  # pragma: no cover
         )  # pragma: no cover
 
-    @catch_and_raise(ConnectionRefusedError, socket.timeout, socket.error, socket.gaierror)
+    @catch_and_raise(OSError)
     def ping(self) -> bool:
         """Check whether a connection to the beanstalk server can be opened."""
-        connection = socket.create_connection((self.host, self.port), timeout=self.socket_timeout)
-        connection.close()
+        connection = socket.create_connection((self.host, self.port), timeout=self._effective_connect_timeout)
+        self._close_socket(connection)
         return True
 
-    @catch_and_raise(ConnectionRefusedError, socket.timeout, socket.error, socket.gaierror)
     def _connect(self):
-        self.socket = socket.create_connection((self.host, self.port), timeout=self.socket_timeout)
-        self._re_establish_use_watch()
+        sock = None
+        try:
+            sock = socket.create_connection((self.host, self.port), timeout=self._effective_connect_timeout)
+            sock.settimeout(self.socket_timeout)
+            self.socket = sock
+        except OSError as e:
+            self._reset_connection(sock)
+            raise BeanstalkConnectionError(self.host, self.port, e) from e
+        try:
+            self._re_establish_use_watch()
+        except BaseException:
+            self._reset_connection(sock)
+            raise
 
     @property
     def _socket(self):
@@ -217,17 +258,24 @@ class BeanstalkClient(object):
 
         It is a logic error to close the connection while you have a reserved job
         """
-        if self.socket is not None:
-            self.socket.close()
-            self._reset_state()
+        self._reset_connection()
 
     @contextmanager
     def _sock_ctx(self):
-        yield self._socket
+        try:
+            yield self._socket
+        except BeanstalkConnectionError:
+            self._reset_connection()
+            raise
 
     def _receive_from_socket(self, sock, size):
-        message = sock.recv(size)
+        try:
+            message = sock.recv(size)
+        except OSError as e:
+            self._reset_connection(sock)
+            raise BeanstalkConnectionError(self.host, self.port, e) from e
         if not message:
+            self._reset_connection(sock)
             connection_error = ConnectionResetError('Connection closed by beanstalkd')
             raise BeanstalkConnectionError(self.host, self.port, connection_error) from connection_error
         return message
@@ -300,11 +348,16 @@ class BeanstalkClient(object):
         if isinstance(message, bytes):
             if not message.endswith(b'\r\n'):
                 message += b'\r\n'
-            return sock.sendall(message)
+            payload = message
         else:
             if not message.endswith('\r\n'):
                 message += '\r\n'
-            return sock.sendall(message.encode('utf-8'))
+            payload = message.encode('utf-8')
+        try:
+            return sock.sendall(payload)
+        except OSError as e:
+            self._reset_connection(sock)
+            raise BeanstalkConnectionError(self.host, self.port, e) from e
 
     def list_tubes(self):
         """
@@ -624,12 +677,15 @@ class BeanstalkClient(object):
            :func:`put_job_into()`
               Put a job into a specific tube
         """
+        previous_tube = self.current_tube if self.socket is not None else self.desired_tube
         try:
-            current_tube = self.current_tube
             self.use(tube)
             yield BeanstalkInsertingProxy(self, tube)
         finally:
-            self.use(current_tube)
+            if self.socket is not None:
+                self.use(previous_tube)
+            else:
+                self.desired_tube = previous_tube
 
     def kick_jobs(self, num_jobs):
         """
