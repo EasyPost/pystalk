@@ -2,9 +2,9 @@
 pystalk ChangeLog
 #################
 
-======
-0.10.0
-======
+=====
+0.9.2
+=====
 * Wrap socket ``OSError`` exceptions raised during command send and receive in
   :py:class:`pystalk.client.BeanstalkConnectionError`, chained from the
   underlying error.
