@@ -136,3 +136,56 @@ def test_flapping_client_is_retried_after_backoff(monkeypatch):
 
     assert flapping_client.put_job.call_count == 2
     flapping_client.close.assert_called_once_with()
+
+
+def test_from_uris_passes_connect_timeout():
+    production_pool = ProductionPool.from_uris(
+        ['beanstalkd://first.example.com:11300', 'beanstalk://second.example.com:11301'],
+        socket_timeout=15.0,
+        auto_decode=True,
+        round_robin=False,
+        backoff_time=5.0,
+        initial_shuffle=False,
+        connect_timeout=1.5,
+    )
+
+    clients = [record.client for record in production_pool._clients]
+    assert [(c.host, c.port) for c in clients] == [
+        ('first.example.com', 11300),
+        ('second.example.com', 11301),
+    ]
+    assert all(c.socket_timeout == 15.0 for c in clients)
+    assert all(c.auto_decode is True for c in clients)
+    assert all(c.connect_timeout == 1.5 for c in clients)
+    assert production_pool.round_robin is False
+    assert production_pool.backoff_time == 5.0
+
+
+def test_from_uris_defaults_connect_timeout_to_none():
+    production_pool = ProductionPool.from_uris(
+        ['beanstalkd://first.example.com:11300'],
+        socket_timeout=10.0,
+    )
+
+    client = production_pool._clients[0].client
+    assert client.socket_timeout == 10.0
+    assert client.connect_timeout is None
+
+
+def test_pool_fails_over_when_established_client_resets_during_send():
+    first_sock = Mock()
+    first_sock.sendall.side_effect = ConnectionResetError(104, 'Connection reset by peer')
+    first_client = pool.BeanstalkClient('memstalk1.example.com', 11300)
+    first_client.socket = first_sock
+
+    second_sock = Mock()
+    second_sock.recv.return_value = b'INSERTED 42\r\n'
+    second_client = pool.BeanstalkClient('memstalk2.example.com', 11300)
+    second_client.socket = second_sock
+
+    production_pool = ProductionPool([first_client, second_client], initial_shuffle=False, round_robin=False)
+
+    assert production_pool.put_job(b'job') == (b'INSERTED', 42)
+    first_sock.close.assert_called_once_with()
+    assert first_client.socket is None
+    assert second_client.socket is second_sock

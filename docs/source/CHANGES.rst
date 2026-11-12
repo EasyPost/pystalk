@@ -3,6 +3,21 @@ pystalk ChangeLog
 #################
 
 =====
+0.9.2
+=====
+* Wrap socket ``OSError`` exceptions raised during command send and receive in
+  :py:class:`pystalk.client.BeanstalkConnectionError`, chained from the
+  underlying error.
+* Close the socket and reset client state on any connection-level error so
+  subsequent calls reconnect cleanly and restore ``USE`` and ``WATCH`` state.
+* Add optional ``connect_timeout`` parameter to
+  :py:class:`pystalk.client.BeanstalkClient`,
+  :py:meth:`pystalk.client.BeanstalkClient.from_uri`, and
+  :py:meth:`pystalk.pool.ProductionPool.from_uris` (defaulting to
+  ``socket_timeout`` when unset) so connection establishment can use a shorter
+  timeout than socket I/O.
+
+=====
 0.9.1
 =====
 * Raise :py:class:`pystalk.client.BeanstalkConnectionError` when an established

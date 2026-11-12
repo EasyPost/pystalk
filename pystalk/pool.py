@@ -73,15 +73,18 @@ class ProductionPool(object):
 
     @classmethod
     def from_uris(cls, uris: List[str], socket_timeout: Optional[float] = None, auto_decode: bool = False,
-                  round_robin: bool = True, backoff_time: float = 10.0, initial_shuffle: bool = True):
+                  round_robin: bool = True, backoff_time: float = 10.0, initial_shuffle: bool = True,
+                  connect_timeout: Optional[float] = None):
         """Construct a pool from a list of URIs. See `pystalk.client.Client.from_uri` for more information.
 
         :param uris: A list of URIs
         :param socket_timeout: Socket timeout to set on all constructed clients
         :param auto_decode: Whether bodies should be bytes (False) or strings (True)
+        :param connect_timeout: Connect timeout to set on all constructed clients
         """
         return cls(
-            clients=[BeanstalkClient.from_uri(uri, socket_timeout=socket_timeout, auto_decode=auto_decode)
+            clients=[BeanstalkClient.from_uri(uri, socket_timeout=socket_timeout, auto_decode=auto_decode,
+                                              connect_timeout=connect_timeout)
                      for uri in uris],
             round_robin=round_robin,
             backoff_time=backoff_time,
