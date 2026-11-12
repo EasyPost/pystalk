@@ -3,6 +3,22 @@ pystalk ChangeLog
 #################
 
 =====
+0.9.3
+=====
+* Add :py:func:`pystalk.connect_beanstalk`, a helper that builds a
+  :py:class:`pystalk.pool.ProductionPool` from a comma-separated list of
+  beanstalkd URLs (read from the ``BEANSTALKD_URLS`` environment variable by
+  default) with sensible defaults (3s socket timeout, 1s connect timeout, 10s
+  backoff).
+* Add :py:func:`pystalk.parse_beanstalk_urls`, which normalizes a
+  comma-separated string or iterable of beanstalkd URLs (stripping whitespace
+  and quotes, dropping empty entries, and prepending the ``beanstalk://``
+  scheme when missing).
+* Add :py:meth:`pystalk.pool.ProductionPool.from_env`, which constructs a pool
+  from URLs read from an environment variable using the same logic as
+  :py:func:`pystalk.connect_beanstalk`.
+
+=====
 0.9.2
 =====
 * Wrap socket ``OSError`` exceptions raised during command send and receive in

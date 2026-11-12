@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import List, Mapping, Optional, Union
 from collections import deque
 import time
 import random
@@ -89,6 +89,37 @@ class ProductionPool(object):
             round_robin=round_robin,
             backoff_time=backoff_time,
             initial_shuffle=initial_shuffle
+        )
+
+    @classmethod
+    def from_env(cls, env_var: str = 'BEANSTALKD_URLS', socket_timeout: Optional[float] = 3.0,
+                 connect_timeout: Optional[float] = 1.0, backoff_time: float = 10.0,
+                 round_robin: bool = True, initial_shuffle: bool = True, auto_decode: bool = False,
+                 environ: Optional[Mapping[str, str]] = None) -> 'ProductionPool':
+        """Construct a pool from beanstalkd URLs read from an environment variable.
+
+        Equivalent to calling :func:`pystalk.connect_beanstalk` with no ``urls`` argument;
+        see that function for details.
+
+        :param env_var: Name of the environment variable holding comma-separated URLs
+        :param socket_timeout: Socket timeout to set on all constructed clients
+        :param connect_timeout: Connect timeout to set on all constructed clients
+        :param backoff_time: Number of seconds after an error before a server will be reused
+        :param round_robin: If true, every insertion will go to a different server in the pool
+        :param initial_shuffle: Randomly shuffle clients at initialization
+        :param auto_decode: Whether bodies should be bytes (False) or strings (True)
+        :param environ: Mapping to read environment variables from (defaults to ``os.environ``)
+        """
+        from .helpers import connect_beanstalk
+        return connect_beanstalk(
+            env_var=env_var,
+            socket_timeout=socket_timeout,
+            connect_timeout=connect_timeout,
+            backoff_time=backoff_time,
+            round_robin=round_robin,
+            initial_shuffle=initial_shuffle,
+            auto_decode=auto_decode,
+            environ=environ,
         )
 
     def use(self, tube: str):
