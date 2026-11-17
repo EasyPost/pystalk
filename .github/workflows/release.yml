@@ -11,7 +11,9 @@ permissions:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    # TODO: Ubuntu 26 will require modernizing all dependencies because it drops python 3.9.
+    # Keep every workflow, including this 3.14 publish job, on 24.04 so ubuntu-latest cannot move it first.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: extractions/setup-just@v3
