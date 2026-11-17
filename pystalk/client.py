@@ -262,9 +262,26 @@ class BeanstalkClient(object):
 
     @contextmanager
     def _sock_ctx(self):
+        """Yield the live socket for one command.
+
+        A protocol :class:`BeanstalkError` (``NOT_FOUND``, ``TIMED_OUT``, and so
+        on) means the server reply was consumed and the connection is still in
+        sync, so the socket stays open. :class:`BeanstalkConnectionError` is a
+        :class:`BeanstalkError`, but the socket is already unusable.
+
+        Any other exception — ``KeyboardInterrupt``, ``SystemExit``, a timeout
+        raised by another library, or a response parse error — can leave an
+        unread reply or a partial command on the wire. The socket is closed so
+        the next command reconnects instead of reading a stale response. The
+        original exception is always re-raised unchanged.
+        """
         try:
             yield self._socket
-        except BeanstalkConnectionError:
+        except BeanstalkError as exc:
+            if isinstance(exc, BeanstalkConnectionError):
+                self._reset_connection()
+            raise
+        except BaseException:
             self._reset_connection()
             raise
 

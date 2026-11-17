@@ -5,14 +5,33 @@ pystalk ChangeLog
 =====
 0.9.2
 =====
-* Wrap socket ``OSError`` exceptions raised during command send and receive in
+* **Behavior change:** ``OSError`` raised while sending or receiving a command
+  (including ``socket.timeout``, ``TimeoutError``, ``ConnectionResetError``,
+  and ``BrokenPipeError``) is now wrapped in
   :py:class:`pystalk.client.BeanstalkConnectionError`, chained from the
-  underlying error.
-* Close the socket and reset client state on any connection-level error so
-  subsequent calls reconnect cleanly and restore ``USE`` and ``WATCH`` state.
+  original error (also preserved on :attr:`err`).
+  :py:class:`~pystalk.client.BeanstalkConnectionError` is a
+  :py:class:`~pystalk.client.BeanstalkError`, **not** an ``OSError``.
+  ``except OSError`` and ``except socket.timeout`` around pystalk calls no
+  longer catch these failures; catch
+  :py:class:`~pystalk.client.BeanstalkConnectionError` or
+  :py:class:`~pystalk.client.BeanstalkError` instead.
+* Close the socket and reset client state on any connection-level error, and
+  on any other exception that interrupts a command (for example
+  ``KeyboardInterrupt``, a timeout raised by another library, or a response
+  parse error), so the next call reconnects and restores ``USE`` / ``WATCH``
+  instead of reading a stale reply. A normal protocol
+  :py:class:`~pystalk.client.BeanstalkError` still leaves the socket open.
+* :py:meth:`pystalk.pool.ProductionPool.put_job` and
+  :py:meth:`~pystalk.pool.ProductionPool.put_job_into` pass the caller's
+  ``ttr`` through. Previously both methods ignored it and stored ``ttr=120``.
+* Treat a ``DRAINING`` response as retriable in
+  :py:class:`~pystalk.pool.ProductionPool`, so a host drained for maintenance
+  fails over to the next server.
 * Add optional ``connect_timeout`` parameter to
   :py:class:`pystalk.client.BeanstalkClient`,
-  :py:meth:`pystalk.client.BeanstalkClient.from_uri`, and
+  :py:meth:`pystalk.client.BeanstalkClient.from_uri`,
+  :py:meth:`pystalk.client.BeanstalkClient.ping`, and
   :py:meth:`pystalk.pool.ProductionPool.from_uris` (defaulting to
   ``socket_timeout`` when unset) so connection establishment can use a shorter
   timeout than socket I/O.

@@ -483,3 +483,58 @@ def test_from_uri_passes_connect_timeout(monkeypatch):
     assert client.stats() == {'foo': 'bar'}
     create_connection.assert_called_once_with(('pystalk.example.com', 11301), timeout=2.0)
     assert sock.settimeout_calls == [25.0]
+
+
+@pytest.mark.parametrize('exc_type', [KeyboardInterrupt, SystemExit])
+def test_sock_ctx_resets_socket_when_command_is_interrupted(client, server, exc_type):
+    client.current_tube = 'jobs'
+    client.desired_tube = 'jobs'
+    client._watchlist = {'jobs'}
+    client.desired_watchlist = {'default', 'jobs'}
+    client.initial_watch = False
+    raised = exc_type('stopped')
+    server.recv = Mock(side_effect=raised)
+
+    with pytest.raises(exc_type) as exc_info:
+        client.reserve_job(0)
+
+    assert exc_info.value is raised
+    assert server.closed is True
+    assert client.socket is None
+    assert client.current_tube == 'default'
+    assert client._watchlist == {'default'}
+    assert client.desired_tube == 'jobs'
+    assert client.desired_watchlist == {'default', 'jobs'}
+
+
+def test_sock_ctx_resets_socket_on_response_parse_error(client, server):
+    client.current_tube = 'jobs'
+    client.desired_tube = 'jobs'
+    client._watchlist = {'jobs'}
+    client.desired_watchlist = {'default', 'jobs'}
+    client.initial_watch = False
+    server.responses.append(b'INSERTED not-an-id\r\n')
+
+    with pytest.raises(ValueError):
+        client.put_job('hello')
+
+    assert server.closed is True
+    assert client.socket is None
+    assert client.desired_tube == 'jobs'
+    assert client.desired_watchlist == {'default', 'jobs'}
+
+
+def test_sock_ctx_keeps_socket_open_on_protocol_error(client, server):
+    server.responses.append(b'NOT_FOUND\r\n')
+
+    with pytest.raises(pystalk.BeanstalkError) as exc_info:
+        client.delete_job(5)
+
+    assert exc_info.value.message == 'NOT_FOUND'
+    assert server.closed is False
+    assert client.socket is server
+
+    server.responses.append(b'OK 17\r\n--- {"foo": "bar"}\r\n')
+    assert client.stats() == {'foo': 'bar'}
+    assert client.socket is server
+    assert server.closed is False

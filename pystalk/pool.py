@@ -10,7 +10,9 @@ import attr
 from .client import BeanstalkClient, BeanstalkConnectionError, BeanstalkError
 
 
-RETRIABLE_ERRORS = ('INTERNAL_ERROR', 'OUT_OF_MEMORY')
+# DRAINING is what beanstalkd returns from put after SIGUSR1. Fail over so a
+# host being drained for maintenance does not fail the enqueue.
+RETRIABLE_ERRORS = ('INTERNAL_ERROR', 'OUT_OF_MEMORY', 'DRAINING')
 
 
 def _get_time():
@@ -172,7 +174,7 @@ class ProductionPool(object):
               Insert a job using an external guard
         """
         return self._attempt_on_all_clients(
-            lambda client: client.put_job(data=data, pri=pri, delay=delay, ttr=120)
+            lambda client: client.put_job(data=data, pri=pri, delay=delay, ttr=ttr)
         )
 
     def put_job_into(self, tube_name: str, data: Union[str, bytes], pri: int = 65536,
@@ -200,5 +202,5 @@ class ProductionPool(object):
               Insert a job using an external guard
         """
         return self._attempt_on_all_clients(
-            lambda client: client.put_job_into(tube_name=tube_name, data=data, pri=pri, delay=delay, ttr=120)
+            lambda client: client.put_job_into(tube_name=tube_name, data=data, pri=pri, delay=delay, ttr=ttr)
         )
