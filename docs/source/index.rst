@@ -30,9 +30,14 @@ Members
    :members:
    :undoc-members:
 
+.. autofunction:: pystalk.connect_beanstalk_pool
+
 .. autofunction:: pystalk.connect_beanstalk
 
 .. autofunction:: pystalk.parse_beanstalk_urls
+
+.. autoclass:: pystalk.NoMoreClients
+   :members:
 
 .. autoclass:: pystalk.BeanstalkError
    :members:

@@ -105,20 +105,32 @@ it for consumption.
 
 #### Connecting from `BEANSTALKD_URLS`
 
+> **This returns a `ProductionPool`, not a `BeanstalkClient`.**
+> Use it only to produce jobs (`put_job` / `put_job_into`). It does not support `reserve_job`, `watch`, `stats`,
+> `using()`, `close()`, or `ping()`.
+>
+> Other services (billing, payment, subscription-processor, awstoken) have their own `connect_beanstalk()` helpers that
+> **return a `BeanstalkClient`**. Do not replace those with `pystalk.connect_beanstalk`. The call will succeed and then
+> fail later, when something tries to reserve or watch. Prefer `connect_beanstalk_pool`; `connect_beanstalk` is the same
+> function, kept as an alias.
+
 If you keep your beanstalkd servers in a comma-separated environment variable (conventionally `BEANSTALKD_URLS`), you
-can build a pool in one call:
+can build a producer pool in one call:
 
 ```python
-from pystalk import connect_beanstalk
+from pystalk import connect_beanstalk_pool
 
-pool = connect_beanstalk()  # reads BEANSTALKD_URLS
+pool = connect_beanstalk_pool()  # reads BEANSTALKD_URLS; returns a ProductionPool
 pool.put_job_into('some tube', 'some job')
 ```
 
+`connect_beanstalk` is an alias of `connect_beanstalk_pool` with the same arguments and the same pool return type.
+
 Entries may be bare `host:port` pairs or full `beanstalk://`/`beanstalkd://` URIs (IPv6 literals like `[::1]:11300`
 work too); surrounding whitespace and quotes are stripped. You can also pass URLs explicitly —
-`connect_beanstalk("host1:11300,host2:11300")` or a list — or use `ProductionPool.from_env()`. Raises `ValueError`
-if the environment variable is missing or yields no URLs. Options and defaults:
+`connect_beanstalk_pool("host1:11300,host2:11300")` or a list — or use `ProductionPool.from_env()`. Raises `ValueError`
+if the environment variable is missing or yields no URLs. When every host fails, the pool raises `NoMoreClients`,
+which is a `BeanstalkError` (and is still catchable as `NoMoreClients`). Options and defaults:
 
 | Option | Default | Description |
 | --- | --- | --- |

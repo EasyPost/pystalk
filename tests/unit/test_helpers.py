@@ -138,3 +138,31 @@ def test_connect_beanstalk_is_reexported():
 def test_connect_empty_explicit_urls_raises_value_error():
     with pytest.raises(ValueError, match='urls argument'):
         connect_beanstalk(' , ', environ={})
+
+
+def test_connect_beanstalk_pool_aliases_connect_beanstalk_and_returns_a_pool():
+    from pystalk import BeanstalkClient, BeanstalkError, NoMoreClients, connect_beanstalk_pool
+
+    assert connect_beanstalk_pool is connect_beanstalk
+    assert connect_beanstalk_pool is helpers_connect_beanstalk
+    assert 'ProductionPool' in connect_beanstalk_pool.__doc__
+    assert 'not' in connect_beanstalk_pool.__doc__.lower()
+    assert 'BeanstalkClient' in connect_beanstalk_pool.__doc__
+
+    pool = connect_beanstalk_pool('host1:11300', environ={}, initial_shuffle=False)
+    assert isinstance(pool, ProductionPool)
+    assert not isinstance(pool, BeanstalkClient)
+
+    err = NoMoreClients()
+    assert isinstance(err, BeanstalkError)
+    assert isinstance(err, NoMoreClients)
+    assert str(err) == 'No clients can process requests at this time'
+    assert err.message == 'No clients can process requests at this time'
+    # Still raised with no arguments, and still catchable as NoMoreClients
+    # even when the handler is written against BeanstalkError's parent.
+    with pytest.raises(NoMoreClients):
+        raise NoMoreClients()
+    with pytest.raises(BeanstalkError):
+        raise NoMoreClients()
+    with pytest.raises(Exception):
+        raise NoMoreClients()

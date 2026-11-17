@@ -19,9 +19,20 @@ def _get_time():
     return time.monotonic()
 
 
-class NoMoreClients(Exception):
-    def __str__(self):
-        return "No clients can process requests at this time"
+class NoMoreClients(BeanstalkError):
+    """Raised when no client in a :class:`ProductionPool` can take the request.
+
+    Subclass of :class:`BeanstalkError`, so ``except BeanstalkError`` also
+    catches the all-hosts-down case. ``except NoMoreClients`` still works,
+    including for callers that imported the name from :mod:`pystalk.pool`
+    rather than :mod:`pystalk`. Catch ``NoMoreClients`` before
+    ``BeanstalkError`` if the two cases need to be distinguished.
+
+    Raised with no arguments. ``str()`` is unchanged.
+    """
+
+    def __init__(self, message: Union[str, bytes] = "No clients can process requests at this time"):
+        super().__init__(message)
 
 
 @attr.s

@@ -32,16 +32,28 @@ def parse_beanstalk_urls(urls: Union[str, Iterable[str]]) -> List[str]:
     return uris
 
 
-def connect_beanstalk(urls: Optional[Union[str, Iterable[str]]] = None, *,
-                      env_var: str = 'BEANSTALKD_URLS',
-                      socket_timeout: Optional[float] = 3.0,
-                      connect_timeout: Optional[float] = 1.0,
-                      backoff_time: float = 10.0,
-                      round_robin: bool = True,
-                      initial_shuffle: bool = True,
-                      auto_decode: bool = False,
-                      environ: Optional[Mapping[str, str]] = None) -> ProductionPool:
-    """Build a :class:`ProductionPool` from a list of beanstalkd URLs or an environment variable.
+def connect_beanstalk_pool(urls: Optional[Union[str, Iterable[str]]] = None, *,
+                           env_var: str = 'BEANSTALKD_URLS',
+                           socket_timeout: Optional[float] = 3.0,
+                           connect_timeout: Optional[float] = 1.0,
+                           backoff_time: float = 10.0,
+                           round_robin: bool = True,
+                           initial_shuffle: bool = True,
+                           auto_decode: bool = False,
+                           environ: Optional[Mapping[str, str]] = None) -> ProductionPool:
+    """Build a :class:`ProductionPool` for **producing** jobs. This is not a client.
+
+    .. warning::
+
+       Returns a :class:`ProductionPool`, **not** a :class:`BeanstalkClient`.
+       The pool only implements ``put_job`` and ``put_job_into``. It does not
+       implement ``reserve_job``, ``watch``, ``stats``, ``using``, ``close``,
+       or ``ping``. Do not swap this in for the ``connect_beanstalk()`` helpers
+       in billing, payment, subscription-processor, or awstoken: those return a
+       :class:`BeanstalkClient`, and a silent swap fails at runtime.
+
+       :func:`connect_beanstalk` is the same function, kept as an alias so
+       existing imports keep working. Prefer :func:`connect_beanstalk_pool`.
 
     If ``urls`` is None, the URLs are read from ``environ[env_var]`` (``environ`` defaults to
     ``os.environ``) as a comma-separated string. URLs are parsed with
@@ -82,3 +94,9 @@ def connect_beanstalk(urls: Optional[Union[str, Iterable[str]]] = None, *,
         backoff_time=backoff_time,
         initial_shuffle=initial_shuffle,
     )
+
+
+# Alias kept so ``from pystalk import connect_beanstalk`` still works. The name
+# reads like the client-returning helpers in other services; it is not one.
+# See :func:`connect_beanstalk_pool`.
+connect_beanstalk = connect_beanstalk_pool

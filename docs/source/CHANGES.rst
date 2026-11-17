@@ -5,18 +5,33 @@ pystalk ChangeLog
 =====
 0.9.3
 =====
-* Add :py:func:`pystalk.connect_beanstalk`, a helper that builds a
+* Add :py:func:`pystalk.connect_beanstalk_pool` (also available as
+  :py:func:`pystalk.connect_beanstalk`), a helper that builds a
   :py:class:`pystalk.pool.ProductionPool` from a comma-separated list of
   beanstalkd URLs (read from the ``BEANSTALKD_URLS`` environment variable by
   default) with sensible defaults (3s socket timeout, 1s connect timeout, 10s
   backoff).
+* **Returns a pool, not a client.** :py:func:`~pystalk.connect_beanstalk` and
+  :py:func:`~pystalk.connect_beanstalk_pool` return a
+  :py:class:`~pystalk.pool.ProductionPool` for ``put_job`` /
+  ``put_job_into`` only. They are not a drop-in replacement for the
+  ``connect_beanstalk()`` helpers in billing, payment, subscription-processor,
+  or awstoken, which return a :py:class:`~pystalk.client.BeanstalkClient`.
+  Prefer the ``connect_beanstalk_pool`` name. ``connect_beanstalk`` is an
+  alias kept so existing imports of this function keep working.
 * Add :py:func:`pystalk.parse_beanstalk_urls`, which normalizes a
   comma-separated string or iterable of beanstalkd URLs (stripping whitespace
   and quotes, dropping empty entries, and prepending the ``beanstalk://``
   scheme when missing).
 * Add :py:meth:`pystalk.pool.ProductionPool.from_env`, which constructs a pool
   from URLs read from an environment variable using the same logic as
-  :py:func:`pystalk.connect_beanstalk`.
+  :py:func:`pystalk.connect_beanstalk_pool`.
+* :py:class:`pystalk.NoMoreClients` (also :py:class:`pystalk.pool.NoMoreClients`)
+  is now a subclass of :py:class:`~pystalk.client.BeanstalkError` and is
+  exported from :mod:`pystalk`. ``except NoMoreClients`` still catches it, and
+  so does ``except BeanstalkError``. Catch ``NoMoreClients`` first if you need
+  to tell "every host failed" apart from a protocol error. It is still raised
+  with no arguments and ``str()`` is unchanged.
 
 =====
 0.9.2
