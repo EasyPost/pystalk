@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>pystalk.pool &#8212; pystalk  documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../../_static/classic.css?v=2bf1fcf8" />
+    
+    <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">pystalk  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">pystalk.pool</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pystalk.pool</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Mapping</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">deque</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">random</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">socket</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">attr</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">.client</span><span class="w"> </span><span class="kn">import</span> <span class="n">BeanstalkClient</span><span class="p">,</span> <span class="n">BeanstalkConnectionError</span><span class="p">,</span> <span class="n">BeanstalkError</span>
+
+
+<span class="c1"># DRAINING is what beanstalkd returns from put after SIGUSR1. Fail over so a</span>
+<span class="c1"># host being drained for maintenance does not fail the enqueue.</span>
+<span class="n">RETRIABLE_ERRORS</span> <span class="o">=</span> <span class="p">(</span><span class="s1">'INTERNAL_ERROR'</span><span class="p">,</span> <span class="s1">'OUT_OF_MEMORY'</span><span class="p">,</span> <span class="s1">'DRAINING'</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_get_time</span><span class="p">():</span>
+    <span class="k">return</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="NoMoreClients">
+<a class="viewcode-back" href="../../index.html#pystalk.NoMoreClients">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">NoMoreClients</span><span class="p">(</span><span class="n">BeanstalkError</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Raised when no client in a :class:`ProductionPool` can take the request.</span>
+
+<span class="sd">    Subclass of :class:`BeanstalkError`, so ``except BeanstalkError`` also</span>
+<span class="sd">    catches the all-hosts-down case. ``except NoMoreClients`` still works,</span>
+<span class="sd">    including for callers that imported the name from :mod:`pystalk.pool`</span>
+<span class="sd">    rather than :mod:`pystalk`. Catch ``NoMoreClients`` before</span>
+<span class="sd">    ``BeanstalkError`` if the two cases need to be distinguished.</span>
+
+<span class="sd">    Raised with no arguments. ``str()`` is unchanged.</span>
+<span class="sd">    """</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"No clients can process requests at this time"</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">message</span><span class="p">)</span></div>
+
+
+
+<span class="nd">@attr</span><span class="o">.</span><span class="n">s</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ClientRecord</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="n">client</span><span class="p">:</span> <span class="n">BeanstalkClient</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">()</span>
+    <span class="n">last_failed_at</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">ib</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_ok</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">backoff_time</span><span class="p">,</span> <span class="n">now</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">now</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">now</span> <span class="o">=</span> <span class="n">_get_time</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_failed_at</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span>
+        <span class="k">return</span> <span class="n">now</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_failed_at</span> <span class="o">+</span> <span class="n">backoff_time</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">mark_failed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">now</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">now</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">now</span> <span class="o">=</span> <span class="n">_get_time</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_failed_at</span> <span class="o">=</span> <span class="n">now</span>
+
+
+<div class="viewcode-block" id="ProductionPool">
+<a class="viewcode-back" href="../../index.html#pystalk.ProductionPool">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ProductionPool</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""A pool for producing jobs into a list of beanstalk servers. When an error occurs, job insertion</span>
+<span class="sd">    will be re-attempted on the next server in the pool.</span>
+
+<span class="sd">    :param clients: List of beanstalk client instances to use</span>
+<span class="sd">    :param round_robin: If true, every insertion will go to a different server in the pool. If false,</span>
+<span class="sd">        the server will only be changed when an exception occurs.</span>
+<span class="sd">    :param backoff_time: Number of seconds after an error before a server will be reused</span>
+<span class="sd">    :param initial_shuffle: Randomly shuffle clients at initialization</span>
+
+<span class="sd">    All clients should have a socket timeout set or else some errors will not be detected.</span>
+
+<span class="sd">    NOTE: This will give you at-least-once deliverability (presuming at least one server is up), but can *easily*</span>
+<span class="sd">    result in jobs being issued multiple times. Only use this functionality with idempotent jobs.</span>
+
+<span class="sd">    This method of pooling is only suitable for use when *producing* jobs. For *consuming* jobs from a cluster of</span>
+<span class="sd">    beanstalkd servers, consider the `pystalkworker` project.</span>
+<span class="sd">    """</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">clients</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">BeanstalkClient</span><span class="p">],</span> <span class="n">round_robin</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                 <span class="n">backoff_time</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span> <span class="n">initial_shuffle</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">clients</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">'Must pass at least one BeanstalkClient'</span><span class="p">)</span>
+        <span class="n">client_records</span> <span class="o">=</span> <span class="p">[</span><span class="n">ClientRecord</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">clients</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">initial_shuffle</span><span class="p">:</span>
+            <span class="n">random</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="n">client_records</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_clients</span> <span class="o">=</span> <span class="n">deque</span><span class="p">(</span><span class="n">client_records</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_tube</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">round_robin</span> <span class="o">=</span> <span class="n">round_robin</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">backoff_time</span> <span class="o">=</span> <span class="n">backoff_time</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s1">'pystalk.ProductionPool'</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ProductionPool.from_uris">
+<a class="viewcode-back" href="../../index.html#pystalk.ProductionPool.from_uris">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_uris</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">uris</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">socket_timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">auto_decode</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                  <span class="n">round_robin</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">backoff_time</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span> <span class="n">initial_shuffle</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+                  <span class="n">connect_timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Construct a pool from a list of URIs. See `pystalk.client.Client.from_uri` for more information.</span>
+
+<span class="sd">        :param uris: A list of URIs</span>
+<span class="sd">        :param socket_timeout: Socket timeout to set on all constructed clients</span>
+<span class="sd">        :param auto_decode: Whether bodies should be bytes (False) or strings (True)</span>
+<span class="sd">        :param connect_timeout: Connect timeout to set on all constructed clients</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
+            <span class="n">clients</span><span class="o">=</span><span class="p">[</span><span class="n">BeanstalkClient</span><span class="o">.</span><span class="n">from_uri</span><span class="p">(</span><span class="n">uri</span><span class="p">,</span> <span class="n">socket_timeout</span><span class="o">=</span><span class="n">socket_timeout</span><span class="p">,</span> <span class="n">auto_decode</span><span class="o">=</span><span class="n">auto_decode</span><span class="p">,</span>
+                                              <span class="n">connect_timeout</span><span class="o">=</span><span class="n">connect_timeout</span><span class="p">)</span>
+                     <span class="k">for</span> <span class="n">uri</span> <span class="ow">in</span> <span class="n">uris</span><span class="p">],</span>
+            <span class="n">round_robin</span><span class="o">=</span><span class="n">round_robin</span><span class="p">,</span>
+            <span class="n">backoff_time</span><span class="o">=</span><span class="n">backoff_time</span><span class="p">,</span>
+            <span class="n">initial_shuffle</span><span class="o">=</span><span class="n">initial_shuffle</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ProductionPool.from_env">
+<a class="viewcode-back" href="../../index.html#pystalk.ProductionPool.from_env">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_env</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">env_var</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'BEANSTALKD_URLS'</span><span class="p">,</span> <span class="n">socket_timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">3.0</span><span class="p">,</span>
+                 <span class="n">connect_timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">backoff_time</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span>
+                 <span class="n">round_robin</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">initial_shuffle</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">auto_decode</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">environ</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">'ProductionPool'</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Construct a pool from beanstalkd URLs read from an environment variable.</span>
+
+<span class="sd">        Equivalent to calling :func:`pystalk.connect_beanstalk` with no ``urls`` argument;</span>
+<span class="sd">        see that function for details.</span>
+
+<span class="sd">        :param env_var: Name of the environment variable holding comma-separated URLs</span>
+<span class="sd">        :param socket_timeout: Socket timeout to set on all constructed clients</span>
+<span class="sd">        :param connect_timeout: Connect timeout to set on all constructed clients</span>
+<span class="sd">        :param backoff_time: Number of seconds after an error before a server will be reused</span>
+<span class="sd">        :param round_robin: If true, every insertion will go to a different server in the pool</span>
+<span class="sd">        :param initial_shuffle: Randomly shuffle clients at initialization</span>
+<span class="sd">        :param auto_decode: Whether bodies should be bytes (False) or strings (True)</span>
+<span class="sd">        :param environ: Mapping to read environment variables from (defaults to ``os.environ``)</span>
+<span class="sd">        """</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.helpers</span><span class="w"> </span><span class="kn">import</span> <span class="n">connect_beanstalk</span>
+        <span class="k">return</span> <span class="n">connect_beanstalk</span><span class="p">(</span>
+            <span class="n">env_var</span><span class="o">=</span><span class="n">env_var</span><span class="p">,</span>
+            <span class="n">socket_timeout</span><span class="o">=</span><span class="n">socket_timeout</span><span class="p">,</span>
+            <span class="n">connect_timeout</span><span class="o">=</span><span class="n">connect_timeout</span><span class="p">,</span>
+            <span class="n">backoff_time</span><span class="o">=</span><span class="n">backoff_time</span><span class="p">,</span>
+            <span class="n">round_robin</span><span class="o">=</span><span class="n">round_robin</span><span class="p">,</span>
+            <span class="n">initial_shuffle</span><span class="o">=</span><span class="n">initial_shuffle</span><span class="p">,</span>
+            <span class="n">auto_decode</span><span class="o">=</span><span class="n">auto_decode</span><span class="p">,</span>
+            <span class="n">environ</span><span class="o">=</span><span class="n">environ</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ProductionPool.use">
+<a class="viewcode-back" href="../../index.html#pystalk.ProductionPool.use">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">use</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tube</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Start producing jobs into the given tube.</span>
+
+<span class="sd">        :param tube: Name of the tube to USE</span>
+
+<span class="sd">        Subsequent calls to :func:`put_job` insert jobs into this tube.</span>
+<span class="sd">        """</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_tube</span> <span class="o">=</span> <span class="n">tube</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_client</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attempted_client_ids</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="c1"># Attempt to find the next live client.</span>
+        <span class="k">if</span> <span class="n">attempted_client_ids</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">attempted_client_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="n">now</span> <span class="o">=</span> <span class="n">_get_time</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_clients</span><span class="p">)):</span>
+            <span class="n">client_record</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clients</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">id</span><span class="p">(</span><span class="n">client_record</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">attempted_client_ids</span> <span class="ow">and</span> <span class="n">client_record</span><span class="o">.</span><span class="n">is_ok</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">backoff_time</span><span class="p">,</span> <span class="n">now</span><span class="o">=</span><span class="n">now</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">client_record</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_clients</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">'All clients are failed!'</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">NoMoreClients</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_mark_client_failed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">client_record</span><span class="p">,</span> <span class="n">close_connection</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">close_connection</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">client_record</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="k">except</span> <span class="n">socket</span><span class="o">.</span><span class="n">error</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">'error closing failed client </span><span class="si">%r</span><span class="s1">: </span><span class="si">%r</span><span class="s1">'</span><span class="p">,</span> <span class="n">client_record</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+        <span class="n">client_record</span><span class="o">.</span><span class="n">mark_failed</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clients</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">is</span> <span class="n">client_record</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_clients</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_attempt_on_all_clients</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">thunk</span><span class="p">):</span>
+        <span class="n">attempted_client_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">attempted_client_ids</span><span class="p">)</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_clients</span><span class="p">):</span>
+            <span class="n">client_record</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_client</span><span class="p">(</span><span class="n">attempted_client_ids</span><span class="p">)</span>
+            <span class="n">attempted_client_ids</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="nb">id</span><span class="p">(</span><span class="n">client_record</span><span class="p">))</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_tube</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">client_record</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">current_tube</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_tube</span><span class="p">:</span>
+                    <span class="n">client_record</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_tube</span><span class="p">)</span>
+                <span class="n">rv</span> <span class="o">=</span> <span class="n">thunk</span><span class="p">(</span><span class="n">client_record</span><span class="o">.</span><span class="n">client</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">round_robin</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_clients</span><span class="o">.</span><span class="n">rotate</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">rv</span>
+            <span class="k">except</span> <span class="n">BeanstalkConnectionError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">'error on server </span><span class="si">%r</span><span class="s1">: </span><span class="si">%r</span><span class="s1">'</span><span class="p">,</span> <span class="n">client_record</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_mark_client_failed</span><span class="p">(</span><span class="n">client_record</span><span class="p">,</span> <span class="n">close_connection</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">BeanstalkError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">e</span><span class="o">.</span><span class="n">message</span> <span class="ow">in</span> <span class="n">RETRIABLE_ERRORS</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">'error on server </span><span class="si">%r</span><span class="s1">: </span><span class="si">%r</span><span class="s1">'</span><span class="p">,</span> <span class="n">client_record</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_mark_client_failed</span><span class="p">(</span><span class="n">client_record</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span>
+            <span class="k">except</span> <span class="n">socket</span><span class="o">.</span><span class="n">error</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">'error on server </span><span class="si">%r</span><span class="s1">: </span><span class="si">%r</span><span class="s1">'</span><span class="p">,</span> <span class="n">client_record</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_mark_client_failed</span><span class="p">(</span><span class="n">client_record</span><span class="p">,</span> <span class="n">close_connection</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">'All clients failed during request!'</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="n">NoMoreClients</span><span class="p">()</span>
+
+<div class="viewcode-block" id="ProductionPool.put_job">
+<a class="viewcode-back" href="../../index.html#pystalk.ProductionPool.put_job">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">put_job</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">],</span> <span class="n">pri</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">65536</span><span class="p">,</span> <span class="n">delay</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">ttr</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">120</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Insert a new job into whatever queue is currently USEd</span>
+
+<span class="sd">        :param data: Job body</span>
+<span class="sd">        :type data: Text (either str which will be encoded as utf-8, or bytes which are already utf-8</span>
+<span class="sd">        :param pri: Priority for the job</span>
+<span class="sd">        :type pri: int</span>
+<span class="sd">        :param delay: Delay in seconds before the job should be placed on the ready queue</span>
+<span class="sd">        :type delay: int</span>
+<span class="sd">        :param ttr: Time to reserve (how long a worker may work on this job before we assume the worker is blocked</span>
+<span class="sd">            and give the job to another worker</span>
+<span class="sd">        :type ttr: int</span>
+
+<span class="sd">        .. seealso::</span>
+
+<span class="sd">           :func:`put_job_into()`</span>
+<span class="sd">              Put a job into a specific tube</span>
+
+<span class="sd">           :func:`using()`</span>
+<span class="sd">              Insert a job using an external guard</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attempt_on_all_clients</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="n">client</span><span class="p">:</span> <span class="n">client</span><span class="o">.</span><span class="n">put_job</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">pri</span><span class="o">=</span><span class="n">pri</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="n">delay</span><span class="p">,</span> <span class="n">ttr</span><span class="o">=</span><span class="n">ttr</span><span class="p">)</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ProductionPool.put_job_into">
+<a class="viewcode-back" href="../../index.html#pystalk.ProductionPool.put_job_into">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">put_job_into</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tube_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">],</span> <span class="n">pri</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">65536</span><span class="p">,</span>
+                     <span class="n">delay</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">ttr</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">120</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Insert a new job into a specific queue. Wrapper around :func:`put_job`.</span>
+
+<span class="sd">        :param tube_name: Tube name</span>
+<span class="sd">        :type tube_name: str</span>
+<span class="sd">        :param data: Job body</span>
+<span class="sd">        :type data: Text (either str which will be encoded as utf-8, or bytes which are already utf-8</span>
+<span class="sd">        :param pri: Priority for the job</span>
+<span class="sd">        :type pri: int</span>
+<span class="sd">        :param delay: Delay in seconds before the job should be placed on the ready queue</span>
+<span class="sd">        :type delay: int</span>
+<span class="sd">        :param ttr: Time to reserve (how long a worker may work on this job before we assume the worker is blocked</span>
+<span class="sd">            and give the job to another worker</span>
+<span class="sd">        :type ttr: int</span>
+
+<span class="sd">        .. seealso::</span>
+
+<span class="sd">           :func:`put_job()`</span>
+<span class="sd">              Put a job into whatever the current tube is</span>
+
+<span class="sd">           :func:`using()`</span>
+<span class="sd">              Insert a job using an external guard</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attempt_on_all_clients</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="n">client</span><span class="p">:</span> <span class="n">client</span><span class="o">.</span><span class="n">put_job_into</span><span class="p">(</span><span class="n">tube_name</span><span class="o">=</span><span class="n">tube_name</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">pri</span><span class="o">=</span><span class="n">pri</span><span class="p">,</span> <span class="n">delay</span><span class="o">=</span><span class="n">delay</span><span class="p">,</span> <span class="n">ttr</span><span class="o">=</span><span class="n">ttr</span><span class="p">)</span>
+        <span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+<search id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</search>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="nav-item nav-item-0"><a href="../../index.html">pystalk  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">pystalk.pool</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+    &#169; Copyright 2016, EasyPost.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 9.2.0.
+    </div>
+  </body>
+</html>
