@@ -84,9 +84,9 @@
 <span class="sd">    Raised when the underlying socket connection to beanstalkd fails.</span>
 
 <span class="sd">    Distinguishes connection-level failures (e.g. connection refused, timeout,</span>
-<span class="sd">    DNS errors) from beanstalk protocol errors. Carries the ``host`` and</span>
-<span class="sd">    `port` that were being connected to, and preserves the original socket</span>
-<span class="sd">    error both on :attr:`err` and via implicit exception chaining (``__context__``).</span>
+<span class="sd">    DNS errors, broken pipe, or connection reset) from beanstalk protocol errors.</span>
+<span class="sd">    Carries the ``host`` and ``port`` that were being connected to, and preserves</span>
+<span class="sd">    the original socket error both on :attr:`err` and via exception chaining.</span>
 
 <span class="sd">    This is a subclass of :class:`BeanstalkError` so that existing</span>
 <span class="sd">    ``except BeanstalkError`` callers continue to catch connection failures.</span>
@@ -119,7 +119,7 @@
             <span class="k">try</span><span class="p">:</span>
                 <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
             <span class="k">except</span> <span class="n">errors</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="n">raise_as</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="n">raise_as</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
         <span class="k">return</span> <span class="n">wrapper</span>
     <span class="k">return</span> <span class="n">decorator</span>
 
@@ -170,6 +170,8 @@
 <span class="sd">    :type socket_timeout: float</span>
 <span class="sd">    :param auto_decode: Attempt to decode job bodies as UTF-8 when reading them</span>
 <span class="sd">    :type auto_decode: bool</span>
+<span class="sd">    :param connect_timeout: Timeout to use when establishing a socket connection. Defaults to ``socket_timeout``.</span>
+<span class="sd">    :type connect_timeout: float</span>
 
 <span class="sd">    Doesn't provide any fanciness for writing consumers or producers. Just lets you invoke methods to call beanstalk</span>
 <span class="sd">    functions.</span>
@@ -180,13 +182,14 @@
 <span class="sd">         :func:`reserve_job()` will cause errors!</span>
 <span class="sd">    """</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">host</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">port</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">11300</span><span class="p">,</span> <span class="n">socket_timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-                 <span class="n">auto_decode</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
+                 <span class="n">auto_decode</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">connect_timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Construct a synchronous Beanstalk Client. Does not connect!</span>
 <span class="sd">        """</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">host</span> <span class="o">=</span> <span class="n">host</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">port</span> <span class="o">=</span> <span class="n">port</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">socket_timeout</span> <span class="o">=</span> <span class="n">socket_timeout</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">connect_timeout</span> <span class="o">=</span> <span class="n">connect_timeout</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_reset_state</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">desired_tube</span> <span class="o">=</span> <span class="s1">'default'</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">desired_watchlist</span> <span class="o">=</span> <span class="nb">set</span><span class="p">([</span><span class="s1">'default'</span><span class="p">])</span>
@@ -195,7 +198,8 @@
 <div class="viewcode-block" id="BeanstalkClient.from_uri">
 <a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.from_uri">[docs]</a>
     <span class="nd">@classmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">from_uri</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">uri</span><span class="p">,</span> <span class="n">socket_timeout</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">auto_decode</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_uri</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">uri</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">socket_timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">auto_decode</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+                 <span class="n">connect_timeout</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">'BeanstalkClient'</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Construct a synchronous Beanstalk Client from a URI.</span>
 
@@ -209,15 +213,21 @@
         <span class="n">ipv6_md</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s1">'^\[([0-9a-fA-F:]+)\](:[0-9]+)?$'</span><span class="p">,</span> <span class="n">parts</span><span class="o">.</span><span class="n">netloc</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">ipv6_md</span><span class="p">:</span>
             <span class="n">host</span> <span class="o">=</span> <span class="n">ipv6_md</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-            <span class="n">port</span> <span class="o">=</span> <span class="n">ipv6_md</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="ow">or</span> <span class="s1">'11300'</span>
-            <span class="n">port</span> <span class="o">=</span> <span class="n">port</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s1">':'</span><span class="p">)</span>
+            <span class="n">port_str</span> <span class="o">=</span> <span class="p">(</span><span class="n">ipv6_md</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="ow">or</span> <span class="s1">'11300'</span><span class="p">)</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s1">':'</span><span class="p">)</span>
+            <span class="n">port</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">port_str</span><span class="p">)</span>
         <span class="k">elif</span> <span class="s1">':'</span> <span class="ow">in</span> <span class="n">parts</span><span class="o">.</span><span class="n">netloc</span><span class="p">:</span>
-            <span class="n">host</span><span class="p">,</span> <span class="n">port</span> <span class="o">=</span> <span class="n">parts</span><span class="o">.</span><span class="n">netloc</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">':'</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">host</span><span class="p">,</span> <span class="n">port_str</span> <span class="o">=</span> <span class="n">parts</span><span class="o">.</span><span class="n">netloc</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s1">':'</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">port</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">port_str</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">host</span> <span class="o">=</span> <span class="n">parts</span><span class="o">.</span><span class="n">netloc</span>
             <span class="n">port</span> <span class="o">=</span> <span class="mi">11300</span>
-        <span class="n">port</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">port</span><span class="p">)</span>
-        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="p">,</span> <span class="n">socket_timeout</span><span class="o">=</span><span class="n">socket_timeout</span><span class="p">,</span> <span class="n">auto_decode</span><span class="o">=</span><span class="n">auto_decode</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span>
+            <span class="n">host</span><span class="p">,</span>
+            <span class="n">port</span><span class="p">,</span>
+            <span class="n">socket_timeout</span><span class="o">=</span><span class="n">socket_timeout</span><span class="p">,</span>
+            <span class="n">auto_decode</span><span class="o">=</span><span class="n">auto_decode</span><span class="p">,</span>
+            <span class="n">connect_timeout</span><span class="o">=</span><span class="n">connect_timeout</span><span class="p">,</span>
+        <span class="p">)</span></div>
 
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_reset_state</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -225,6 +235,27 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">current_tube</span> <span class="o">=</span> <span class="s1">'default'</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">initial_watch</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">socket</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_effective_connect_timeout</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">connect_timeout</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">connect_timeout</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">socket_timeout</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_close_socket</span><span class="p">(</span><span class="n">sock</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">sock</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">sock</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="k">pass</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_reset_connection</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sock</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">current_sock</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">socket</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reset_state</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_close_socket</span><span class="p">(</span><span class="n">current_sock</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">sock</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">current_sock</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_close_socket</span><span class="p">(</span><span class="n">sock</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="s1">'</span><span class="si">{0}</span><span class="s1">(</span><span class="si">{1!r}</span><span class="s1">, </span><span class="si">{2!r}</span><span class="s1">)'</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">)</span>  <span class="c1"># pragma: no cover</span>
@@ -236,18 +267,28 @@
 
 <div class="viewcode-block" id="BeanstalkClient.ping">
 <a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.ping">[docs]</a>
-    <span class="nd">@catch_and_raise</span><span class="p">(</span><span class="ne">ConnectionRefusedError</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">timeout</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">error</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">gaierror</span><span class="p">)</span>
+    <span class="nd">@catch_and_raise</span><span class="p">(</span><span class="ne">OSError</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">ping</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Check whether a connection to the beanstalk server can be opened."""</span>
-        <span class="n">connection</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">create_connection</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">),</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">socket_timeout</span><span class="p">)</span>
-        <span class="n">connection</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+        <span class="n">connection</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">create_connection</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">),</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_effective_connect_timeout</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_close_socket</span><span class="p">(</span><span class="n">connection</span><span class="p">)</span>
         <span class="k">return</span> <span class="kc">True</span></div>
 
 
-    <span class="nd">@catch_and_raise</span><span class="p">(</span><span class="ne">ConnectionRefusedError</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">timeout</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">error</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">gaierror</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_connect</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">socket</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">create_connection</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">),</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">socket_timeout</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_re_establish_use_watch</span><span class="p">()</span>
+        <span class="n">sock</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">sock</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">create_connection</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">),</span> <span class="n">timeout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_effective_connect_timeout</span><span class="p">)</span>
+            <span class="n">sock</span><span class="o">.</span><span class="n">settimeout</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">socket_timeout</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">socket</span> <span class="o">=</span> <span class="n">sock</span>
+        <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reset_connection</span><span class="p">(</span><span class="n">sock</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">BeanstalkConnectionError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_re_establish_use_watch</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reset_connection</span><span class="p">(</span><span class="n">sock</span><span class="p">)</span>
+            <span class="k">raise</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_socket</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -277,18 +318,42 @@
 
 <span class="sd">        It is a logic error to close the connection while you have a reserved job</span>
 <span class="sd">        """</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">socket</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">socket</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_reset_state</span><span class="p">()</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reset_connection</span><span class="p">()</span></div>
 
 
     <span class="nd">@contextmanager</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_sock_ctx</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">_socket</span>
+<span class="w">        </span><span class="sd">"""Yield the live socket for one command.</span>
+
+<span class="sd">        A protocol :class:`BeanstalkError` (``NOT_FOUND``, ``TIMED_OUT``, and so</span>
+<span class="sd">        on) means the server reply was consumed and the connection is still in</span>
+<span class="sd">        sync, so the socket stays open. :class:`BeanstalkConnectionError` is a</span>
+<span class="sd">        :class:`BeanstalkError`, but the socket is already unusable.</span>
+
+<span class="sd">        Any other exception — ``KeyboardInterrupt``, ``SystemExit``, a timeout</span>
+<span class="sd">        raised by another library, or a response parse error — can leave an</span>
+<span class="sd">        unread reply or a partial command on the wire. The socket is closed so</span>
+<span class="sd">        the next command reconnects instead of reading a stale response. The</span>
+<span class="sd">        original exception is always re-raised unchanged.</span>
+<span class="sd">        """</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="bp">self</span><span class="o">.</span><span class="n">_socket</span>
+        <span class="k">except</span> <span class="n">BeanstalkError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exc</span><span class="p">,</span> <span class="n">BeanstalkConnectionError</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_reset_connection</span><span class="p">()</span>
+            <span class="k">raise</span>
+        <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reset_connection</span><span class="p">()</span>
+            <span class="k">raise</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_receive_from_socket</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sock</span><span class="p">,</span> <span class="n">size</span><span class="p">):</span>
-        <span class="n">message</span> <span class="o">=</span> <span class="n">sock</span><span class="o">.</span><span class="n">recv</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">message</span> <span class="o">=</span> <span class="n">sock</span><span class="o">.</span><span class="n">recv</span><span class="p">(</span><span class="n">size</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reset_connection</span><span class="p">(</span><span class="n">sock</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">BeanstalkConnectionError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">message</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reset_connection</span><span class="p">(</span><span class="n">sock</span><span class="p">)</span>
             <span class="n">connection_error</span> <span class="o">=</span> <span class="ne">ConnectionResetError</span><span class="p">(</span><span class="s1">'Connection closed by beanstalkd'</span><span class="p">)</span>
             <span class="k">raise</span> <span class="n">BeanstalkConnectionError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">,</span> <span class="n">connection_error</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">connection_error</span>
         <span class="k">return</span> <span class="n">message</span>
@@ -361,11 +426,16 @@
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">message</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="sa">b</span><span class="s1">'</span><span class="se">\r\n</span><span class="s1">'</span><span class="p">):</span>
                 <span class="n">message</span> <span class="o">+=</span> <span class="sa">b</span><span class="s1">'</span><span class="se">\r\n</span><span class="s1">'</span>
-            <span class="k">return</span> <span class="n">sock</span><span class="o">.</span><span class="n">sendall</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+            <span class="n">payload</span> <span class="o">=</span> <span class="n">message</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">message</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s1">'</span><span class="se">\r\n</span><span class="s1">'</span><span class="p">):</span>
                 <span class="n">message</span> <span class="o">+=</span> <span class="s1">'</span><span class="se">\r\n</span><span class="s1">'</span>
-            <span class="k">return</span> <span class="n">sock</span><span class="o">.</span><span class="n">sendall</span><span class="p">(</span><span class="n">message</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">'utf-8'</span><span class="p">))</span>
+            <span class="n">payload</span> <span class="o">=</span> <span class="n">message</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">'utf-8'</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">sock</span><span class="o">.</span><span class="n">sendall</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reset_connection</span><span class="p">(</span><span class="n">sock</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="n">BeanstalkConnectionError</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">host</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
 
 <div class="viewcode-block" id="BeanstalkClient.list_tubes">
 <a class="viewcode-back" href="../../index.html#pystalk.BeanstalkClient.list_tubes">[docs]</a>
@@ -750,12 +820,15 @@
 <span class="sd">           :func:`put_job_into()`</span>
 <span class="sd">              Put a job into a specific tube</span>
 <span class="sd">        """</span>
+        <span class="n">previous_tube</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_tube</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">socket</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">desired_tube</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">current_tube</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_tube</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="n">tube</span><span class="p">)</span>
             <span class="k">yield</span> <span class="n">BeanstalkInsertingProxy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tube</span><span class="p">)</span>
         <span class="k">finally</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="n">current_tube</span><span class="p">)</span></div>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">socket</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="n">previous_tube</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">desired_tube</span> <span class="o">=</span> <span class="n">previous_tube</span></div>
 
 
 <div class="viewcode-block" id="BeanstalkClient.kick_jobs">
