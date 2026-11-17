@@ -11,7 +11,10 @@ jobs:
   run-tests:
     env:
       BEANSTALK_VERSION: '1.12'
-    runs-on: ubuntu-latest
+    # ubuntu-latest is 26.04, which has no CPython 3.9 build in
+    # actions/setup-python (3.9 is EOL). Stay on 24.04 so the full
+    # 3.9–3.14 matrix still installs.
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         pythonversion: ['3.9', '3.10', '3.11', '3.12', '3.13', '3.14']
@@ -54,7 +57,7 @@ jobs:
         run: just mypy
   docs:
     if: github.ref == 'refs/heads/master'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: extractions/setup-just@v4
