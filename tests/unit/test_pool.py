@@ -3,7 +3,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from pystalk import BeanstalkConnectionError
+from pystalk import BeanstalkConnectionError, BeanstalkError
 from pystalk import pool
 from pystalk.pool import ClientRecord, NoMoreClients, ProductionPool
 
@@ -136,3 +136,121 @@ def test_flapping_client_is_retried_after_backoff(monkeypatch):
 
     assert flapping_client.put_job.call_count == 2
     flapping_client.close.assert_called_once_with()
+
+
+def test_from_uris_passes_connect_timeout():
+    production_pool = ProductionPool.from_uris(
+        ['beanstalkd://first.example.com:11300', 'beanstalk://second.example.com:11301'],
+        socket_timeout=15.0,
+        auto_decode=True,
+        round_robin=False,
+        backoff_time=5.0,
+        initial_shuffle=False,
+        connect_timeout=1.5,
+    )
+
+    clients = [record.client for record in production_pool._clients]
+    assert [(c.host, c.port) for c in clients] == [
+        ('first.example.com', 11300),
+        ('second.example.com', 11301),
+    ]
+    assert all(c.socket_timeout == 15.0 for c in clients)
+    assert all(c.auto_decode is True for c in clients)
+    assert all(c.connect_timeout == 1.5 for c in clients)
+    assert production_pool.round_robin is False
+    assert production_pool.backoff_time == 5.0
+
+
+def test_from_uris_defaults_connect_timeout_to_none():
+    production_pool = ProductionPool.from_uris(
+        ['beanstalkd://first.example.com:11300'],
+        socket_timeout=10.0,
+    )
+
+    client = production_pool._clients[0].client
+    assert client.socket_timeout == 10.0
+    assert client.connect_timeout is None
+
+
+def test_put_job_forwards_caller_ttr():
+    client = Mock()
+    client.current_tube = 'default'
+    client.put_job.return_value = (b'INSERTED', 7)
+    production_pool = ProductionPool([client], initial_shuffle=False)
+
+    assert production_pool.put_job(b'job', pri=1, delay=2, ttr=600) == (b'INSERTED', 7)
+
+    client.put_job.assert_called_once_with(data=b'job', pri=1, delay=2, ttr=600)
+
+
+def test_put_job_into_forwards_caller_ttr():
+    client = Mock()
+    client.current_tube = 'jobs'
+    client.put_job_into.return_value = (b'INSERTED', 8)
+    production_pool = ProductionPool([client], initial_shuffle=False)
+    production_pool.current_tube = 'jobs'
+
+    assert production_pool.put_job_into('jobs', b'job', ttr=900) == (b'INSERTED', 8)
+
+    client.put_job_into.assert_called_once_with(
+        tube_name='jobs', data=b'job', pri=65536, delay=0, ttr=900,
+    )
+
+
+def test_put_job_defaults_ttr_to_120():
+    client = Mock()
+    client.current_tube = 'default'
+    client.put_job.return_value = (b'INSERTED', 1)
+    production_pool = ProductionPool([client], initial_shuffle=False)
+
+    production_pool.put_job(b'job')
+
+    assert client.put_job.call_args.kwargs['ttr'] == 120
+
+
+def test_draining_fails_over_to_next_client():
+    calls = []
+    draining_client = make_client('draining', calls, error=BeanstalkError('DRAINING'))
+    good_client = make_client('good', calls, result=123)
+    production_pool = ProductionPool(
+        [draining_client, good_client], initial_shuffle=False, round_robin=False,
+    )
+
+    assert production_pool.put_job(b'job') == 123
+    assert calls == ['draining', 'good']
+    # DRAINING is a protocol response, not a dead socket.
+    draining_client.close.assert_not_called()
+
+
+def test_non_retriable_protocol_error_does_not_fail_over():
+    calls = []
+    bad_client = make_client('bad', calls, error=BeanstalkError('JOB_TOO_BIG'))
+    good_client = make_client('good', calls, result=123)
+    production_pool = ProductionPool(
+        [bad_client, good_client], initial_shuffle=False, round_robin=False,
+    )
+
+    with pytest.raises(BeanstalkError, match='JOB_TOO_BIG'):
+        production_pool.put_job(b'job')
+
+    assert calls == ['bad']
+    good_client.put_job.assert_not_called()
+
+
+def test_pool_fails_over_when_established_client_resets_during_send():
+    first_sock = Mock()
+    first_sock.sendall.side_effect = ConnectionResetError(104, 'Connection reset by peer')
+    first_client = pool.BeanstalkClient('memstalk1.example.com', 11300)
+    first_client.socket = first_sock
+
+    second_sock = Mock()
+    second_sock.recv.return_value = b'INSERTED 42\r\n'
+    second_client = pool.BeanstalkClient('memstalk2.example.com', 11300)
+    second_client.socket = second_sock
+
+    production_pool = ProductionPool([first_client, second_client], initial_shuffle=False, round_robin=False)
+
+    assert production_pool.put_job(b'job') == (b'INSERTED', 42)
+    first_sock.close.assert_called_once_with()
+    assert first_client.socket is None
+    assert second_client.socket is second_sock
