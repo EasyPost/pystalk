@@ -11,7 +11,9 @@ jobs:
   run-tests:
     env:
       BEANSTALK_VERSION: '1.12'
-    # TODO: Ubuntu 26 will require modernizing all dependencies because it drops python 3.9.
+    # ubuntu-latest is 26.04, which has no CPython 3.9 build in
+    # actions/setup-python (3.9 is EOL). Stay on 24.04 so the full
+    # 3.9–3.14 matrix still installs.
     runs-on: ubuntu-24.04
     strategy:
       matrix:
@@ -23,14 +25,19 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/beanstalks
-          key: ${{ runner.os }}-${{ env.BEANSTALK_VERSION }}
+          key: ${{ runner.os }}-${{ env.BEANSTALK_VERSION }}-gnu99
       - name: build beanstalkd
-        if: steps.cache-beanstalkd.cache_hit != 'true'
+        if: steps.cache-beanstalkd.outputs.cache-hit != 'true'
         run: |
           mkdir -p ~/beanstalks
           curl -LJ -o /tmp/beanstalkd.tar.gz https://github.com/beanstalkd/beanstalkd/archive/v${{ env.BEANSTALK_VERSION }}.tar.gz
           tar -C /tmp -xvf /tmp/beanstalkd.tar.gz
           cd /tmp/beanstalkd-${{ env.BEANSTALK_VERSION }}
+          # beanstalkd 1.12 is C99 and builds with -Werror. ubuntu-latest is
+          # Ubuntu 26.04 / GCC 15, which defaults to C23. glibc 2.43 then makes
+          # memchr const-preserving, so prot.c's `char *match = memchr(...)`
+          # fails with -Werror=discarded-qualifiers before any tests run.
+          sed -i 's/-Werror/-Werror -Wno-error=discarded-qualifiers -std=gnu99/' Makefile
           make
           mv beanstalkd ~/beanstalks/
       - name: set up python
@@ -50,7 +57,7 @@ jobs:
         run: just mypy
   docs:
     if: github.ref == 'refs/heads/master'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: extractions/setup-just@v4
